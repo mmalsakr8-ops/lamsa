@@ -11,6 +11,9 @@ export default {async fetch(request,env){try{
  if(p==='/api/register'&&request.method==='POST')return register(request,env);
  if(p==='/api/login'&&request.method==='POST')return login(request,env);
  if(p==='/api/logout'&&request.method==='POST')return logout(request,env);
+ if(p==='/login')return html(authPage('login'));
+if(p==='/register')return html(authPage('register'));
+if(p==='/dashboard')return html(dashboardPage());
  if(p==='/api/me'&&request.method==='GET')return me(request,env);
  if(p==='/api/site'&&request.method==='GET')return getSite(request,env);
  if(p==='/api/site'&&request.method==='POST')return createSite(request,env);
