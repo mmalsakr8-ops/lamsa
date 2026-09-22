@@ -51,16 +51,16 @@ async function register(req,env){const b=await req.json(),name=clean(b.name,80),
 async function login(req,env){const b=await req.json(),raw=clean(b.login,160),email=emailNorm(raw),phone=phoneNorm(raw),u=await env.DB.prepare('SELECT * FROM users WHERE lower(email)=? OR phone=? LIMIT 1').bind(email,phone).first();if(!u||!(await verify(String(b.password||''),u.password_hash)))return json({error:'بيانات الدخول غير صحيحة.'},401);const s=await session(env,u.id);return json({ok:true,user:{id:u.id,name:u.name,email:u.email,phone:u.phone,role:u.role}},200,{'Set-Cookie':setCookie(s.token,s.age)})}
 async function logout(req,env){const sid=cookie(req);if(sid)await env.DB.prepare('DELETE FROM sessions WHERE id=?').bind(sid).run();return json({ok:true},200,{'Set-Cookie':setCookie('',0)})}
 async function me(req,env){const u=await user(req,env);return json({user:u})}
-async function owner(req,env){const u=await user(req,env);if(!u)return json({error:'يجب تسجيل الدخول.'},401);const s=await env.DB.prepare('SELECT * FROM sites WHERE user_id=? LIMIT 1').bind(u.id).first();return {u,s}}
+async function owner(req,env){const u=await user(req,env);if(!u)return {u:null,s:null,response:json({error:'يجب تسجيل الدخول.'},401)};const s=await env.DB.prepare('SELECT * FROM sites WHERE user_id=? LIMIT 1').bind(u.id).first();return {u,s,response:null}}
 function dates(s){const now=Date.now(),end=new Date(s.subscription_status==='active'&&s.subscription_ends_at?s.subscription_ends_at:s.trial_ends_at).getTime();return {end,days:Math.ceil((end-now)/864e5),expired:end<=now,trial:s.subscription_status!=='active'}}
-async function createSite(req,env){const {u,s}=await owner(req,env);if(!u)return s; if(s)return json({error:'لديك موقع بالفعل في النسخة الحالية.'},409);const b=await req.json(),name=clean(b.name,100);if(!name)return json({error:'اكتب اسم المطعم أو الكافيه.'},400);let sl=slug(name);if(await env.DB.prepare('SELECT id FROM sites WHERE slug=?').bind(sl).first())sl+='-'+Math.random().toString(36).slice(2,6);const trial=new Date(Date.now()+FREE_DAYS*864e5).toISOString(),sid=id();await env.DB.prepare(`INSERT INTO sites(id,user_id,name,slug,template,status,subscription_status,trial_ends_at,phone,address,hours,logo_url) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`).bind(sid,u.id,name,sl,'design-01','active','trial',trial,clean(b.phone,30),clean(b.address,200),clean(b.hours,200),clean(b.logo_url,500)).run();return json({ok:true,slug:sl})}
-async function getSite(req,env){const {u,s}=await owner(req,env);if(!u)return s; if(!s)return json({site:null,categories:[],items:[]});const cats=await env.DB.prepare('SELECT * FROM categories WHERE site_id=? ORDER BY sort_order,id').bind(s.id).all();const items=await env.DB.prepare('SELECT * FROM menu_items WHERE site_id=? ORDER BY sort_order,id').bind(s.id).all();const d=dates(s);return json({site:s,categories:cats.results||[],items:items.results||[],expiry:d,designs:d.trial?DESIGNS.slice(0,5):DESIGNS,supportPhone:SUPPORT_PHONE})}
-async function updateSite(req,env){const {u,s}=await owner(req,env);if(!u)return s;if(!s)return json({error:'أنشئ الموقع أولاً.'},404);const b=await req.json(),d=dates(s);if(b.template&&b.template!==s.template&&d.trial)return json({error:'التصاميم الكاملة تظهر بعد انتهاء الـ30 يوم وتجديد الاشتراك.'},403);await env.DB.prepare(`UPDATE sites SET name=?,template=?,phone=?,address=?,hours=?,logo_url=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(clean(b.name,100)||s.name,clean(b.template,40)||s.template,clean(b.phone,30),clean(b.address,200),clean(b.hours,200),clean(b.logo_url,500),s.id).run();return json({ok:true})}
-async function addCategory(req,env){const {u,s}=await owner(req,env);if(!u)return s;if(!s)return json({error:'لا يوجد موقع.'},404);const b=await req.json(),n=clean(b.name,80);if(!n)return json({error:'اسم القسم مطلوب.'},400);await env.DB.prepare('INSERT INTO categories(id,site_id,name,sort_order) VALUES(?,?,?,?)').bind(id(),s.id,n,Date.now()).run();return json({ok:true})}
-async function deleteCategory(req,env){const {u,s}=await owner(req,env);if(!u)return s;const cid=new URL(req.url).searchParams.get('id');await env.DB.prepare('DELETE FROM categories WHERE id=? AND site_id=?').bind(cid,s.id).run();return json({ok:true})}
-async function addItem(req,env){const {u,s}=await owner(req,env);if(!u)return s;if(!s)return json({error:'لا يوجد موقع.'},404);const b=await req.json();if(!clean(b.name,100))return json({error:'اسم الصنف مطلوب.'},400);await env.DB.prepare('INSERT INTO menu_items(id,site_id,category_id,name,description,price,image_url,sort_order,active) VALUES(?,?,?,?,?,?,?,?,1)').bind(id(),s.id,clean(b.category_id,80)||null,clean(b.name,100),clean(b.description,300),Number(b.price)||0,clean(b.image_url,500),Date.now()).run();return json({ok:true})}
-async function updateItem(req,env){const {u,s}=await owner(req,env);if(!u)return s;const b=await req.json();await env.DB.prepare('UPDATE menu_items SET category_id=?,name=?,description=?,price=?,image_url=?,active=? WHERE id=? AND site_id=?').bind(clean(b.category_id,80)||null,clean(b.name,100),clean(b.description,300),Number(b.price)||0,clean(b.image_url,500),b.active?1:0,b.id,s.id).run();return json({ok:true})}
-async function deleteItem(req,env){const {u,s}=await owner(req,env);if(!u)return s;const iid=new URL(req.url).searchParams.get('id');await env.DB.prepare('DELETE FROM menu_items WHERE id=? AND site_id=?').bind(iid,s.id).run();return json({ok:true})}
+async function createSite(req,env){const o=await owner(req,env);if(!o.u)return o.response;const {u,s}=o; if(s)return json({error:'لديك موقع بالفعل في النسخة الحالية.'},409);const b=await req.json(),name=clean(b.name,100);if(!name)return json({error:'اكتب اسم المطعم أو الكافيه.'},400);let sl=slug(name);if(await env.DB.prepare('SELECT id FROM sites WHERE slug=?').bind(sl).first())sl+='-'+Math.random().toString(36).slice(2,6);const trial=new Date(Date.now()+FREE_DAYS*864e5).toISOString(),sid=id();await env.DB.prepare(`INSERT INTO sites(id,user_id,name,slug,template,status,subscription_status,trial_ends_at,phone,address,hours,logo_url) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`).bind(sid,u.id,name,sl,'design-01','active','trial',trial,clean(b.phone,30),clean(b.address,200),clean(b.hours,200),clean(b.logo_url,500)).run();return json({ok:true,slug:sl})}
+async function getSite(req,env){const o=await owner(req,env);if(!o.u)return o.response;const {u,s}=o; if(!s)return json({site:null,categories:[],items:[],designs:DESIGNS.slice(0,5)});const cats=await env.DB.prepare('SELECT * FROM categories WHERE site_id=? ORDER BY sort_order,id').bind(s.id).all();const items=await env.DB.prepare('SELECT * FROM menu_items WHERE site_id=? ORDER BY sort_order,id').bind(s.id).all();const d=dates(s);return json({site:s,categories:cats.results||[],items:items.results||[],expiry:d,designs:d.trial?DESIGNS.slice(0,5):DESIGNS,supportPhone:SUPPORT_PHONE})}
+async function updateSite(req,env){const o=await owner(req,env);if(!o.u)return o.response;const {u,s}=o;if(!s)return json({error:'أنشئ الموقع أولاً.'},404);const b=await req.json(),d=dates(s);if(b.template&&b.template!==s.template&&d.trial)return json({error:'التصاميم الكاملة تظهر بعد انتهاء الـ30 يوم وتجديد الاشتراك.'},403);await env.DB.prepare(`UPDATE sites SET name=?,template=?,phone=?,address=?,hours=?,logo_url=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(clean(b.name,100)||s.name,clean(b.template,40)||s.template,clean(b.phone,30),clean(b.address,200),clean(b.hours,200),clean(b.logo_url,500),s.id).run();return json({ok:true})}
+async function addCategory(req,env){const o=await owner(req,env);if(!o.u)return o.response;const {u,s}=o;if(!s)return json({error:'لا يوجد موقع.'},404);const b=await req.json(),n=clean(b.name,80);if(!n)return json({error:'اسم القسم مطلوب.'},400);await env.DB.prepare('INSERT INTO categories(id,site_id,name,sort_order) VALUES(?,?,?,?)').bind(id(),s.id,n,Date.now()).run();return json({ok:true})}
+async function deleteCategory(req,env){const o=await owner(req,env);if(!o.u)return o.response;const {u,s}=o;const cid=new URL(req.url).searchParams.get('id');await env.DB.prepare('DELETE FROM categories WHERE id=? AND site_id=?').bind(cid,s.id).run();return json({ok:true})}
+async function addItem(req,env){const o=await owner(req,env);if(!o.u)return o.response;const {u,s}=o;if(!s)return json({error:'لا يوجد موقع.'},404);const b=await req.json();if(!clean(b.name,100))return json({error:'اسم الصنف مطلوب.'},400);await env.DB.prepare('INSERT INTO menu_items(id,site_id,category_id,name,description,price,image_url,sort_order,active) VALUES(?,?,?,?,?,?,?,?,1)').bind(id(),s.id,clean(b.category_id,80)||null,clean(b.name,100),clean(b.description,300),Number(b.price)||0,clean(b.image_url,500),Date.now()).run();return json({ok:true})}
+async function updateItem(req,env){const o=await owner(req,env);if(!o.u)return o.response;const {u,s}=o;const b=await req.json();await env.DB.prepare('UPDATE menu_items SET category_id=?,name=?,description=?,price=?,image_url=?,active=? WHERE id=? AND site_id=?').bind(clean(b.category_id,80)||null,clean(b.name,100),clean(b.description,300),Number(b.price)||0,clean(b.image_url,500),b.active?1:0,b.id,s.id).run();return json({ok:true})}
+async function deleteItem(req,env){const o=await owner(req,env);if(!o.u)return o.response;const {u,s}=o;const iid=new URL(req.url).searchParams.get('id');await env.DB.prepare('DELETE FROM menu_items WHERE id=? AND site_id=?').bind(iid,s.id).run();return json({ok:true})}
 async function claimAdmin(req,env){const u=await user(req,env);if(!u)return json({error:'سجل الدخول أولاً.'},401);const a=await env.DB.prepare(`SELECT id FROM users WHERE role='admin' LIMIT 1`).first();if(a)return json({error:'يوجد مدير منصة بالفعل.'},409);await env.DB.prepare(`UPDATE users SET role='admin' WHERE id=?`).bind(u.id).run();return json({ok:true})}
 async function admin(req,env){const u=await user(req,env);if(!u||u.role!=='admin')return null;return u}
 async function adminSites(req,env){const u=await admin(req,env);if(!u)return json({error:'غير مصرح.'},403);const r=await env.DB.prepare(`SELECT s.*,u.name owner_name,u.email owner_email,u.phone owner_phone FROM sites s JOIN users u ON u.id=s.user_id ORDER BY s.created_at DESC`).all();return json({sites:r.results||[]})}
@@ -328,65 +328,20 @@ function authPage(mode){
 }
 ```js
 function dashboardPage(){
-  return base(
-    'لوحة التحكم',
-    `<div id="app" class="app-area"></div>
-    <script>
-      const originalStart=async()=>{
-        try{
-          const m=await fetch('/api/me',{
-            credentials:'same-origin'
-          });
-
-          const data=await m.json().catch(()=>({}));
-
-          if(!data.user){
-            location.href='/login';
-            return;
-          }
-
-          start();
-        }catch(e){
-          location.href='/login';
-        }
-      };
-    </script>
-    <script>${client()}</script>`
-  );
+  return base('لوحة التحكم',`<div id="app" class="app-area"></div><script>${client()}</script>`);
 }
-```
 
-```js
 function home(){return base('لمسة',`<div class="home-shell">
 <header class="site-nav"><a class="brand" href="/"><span class="brand-mark">L</span><span><b>لمسة</b><small>LAMSA</small></span></a><nav><a href="#designs">التصميمات</a><a href="#how">كيف تعمل؟</a><a href="#features">المميزات</a></nav><div class="nav-actions"><a class="login-link" href="/login">تسجيل الدخول</a><a class="nav-cta" href="/register">ابدأ مجانًا</a></div></header>
 <section class="hero-section"><div class="hero-copy"><div class="eyebrow"><span>✦</span> منصة مطاعم وكافيهات عربية</div><h1>خلّي مطعمك<br><em>له لمسة مختلفة.</em></h1><p>اعمل موقعك والمنيو الرقمي بنفسك، اختار التصميم اللي يناسبك، وانشره لعملائك برابط وQR في دقائق.</p><div class="hero-actions"><a class="primary-cta" href="/register">ابدأ موقعك مجانًا <span>←</span></a><a class="ghost-cta" href="#designs">شوف التصميمات <span>⌄</span></a></div><div class="hero-trust"><span>✓ 30 يوم مجانًا</span><span>✓ تعديل المنيو بنفسك</span><span>✓ QR جاهز</span></div></div><div class="hero-visual"><div class="glow g1"></div><div class="glow g2"></div><div class="device-laptop"><div class="screen"><div class="screen-top"><span>لمسة</span><span class="dot"></span></div><div class="food-banner"><div><small>مطعم اليوم</small><strong>طعم يفضل في الذاكرة</strong></div><span>✦</span></div><div class="menu-lines"><div><i></i><b>برجر لمسة</b><strong>١٨٠ ج</strong></div><div><i></i><b>باستا كريمي</b><strong>١٦٠ ج</strong></div><div><i></i><b>موهيتو فراولة</b><strong>٨٥ ج</strong></div></div></div></div><div class="device-phone"><div class="phone-screen"><div class="phone-notch"></div><div class="mini-logo">لمسة</div><div class="mini-photo"></div><h4>قائمة الطعام</h4><div class="mini-item"><span>🍔</span><b>برجر كلاسيك</b><strong>١٨٠</strong></div><div class="mini-item"><span>🥤</span><b>موهيتو</b><strong>٨٥</strong></div><div class="qr-chip">▦ QR</div></div></div><div class="float-card float-qr"><span class="qr-icon">▦</span><div><b>QR Menu</b><small>جاهز للمشاركة</small></div></div><div class="float-card float-free"><b>30</b><span>يوم<br>مجانًا</span></div></div></section>
 <section class="social-strip"><span>صمّم حضور مطعمك بشكل يليق بيه</span><i></i><span>منيو رقمي</span><i></i><span>موقع مطعم</span><i></i><span>QR سريع</span></section>
-<section id="designs" class="section showcase"><div class="section-heading"><div><span class="section-kicker">DESIGN LIBRARY</span><h2>اختار الستايل اللي يشبهك.</h2></div><p>مجموعة تصميمات معمولة للمطاعم والكافيهات، والتصميمات الكاملة تفتح بعد التجديد.</p></div><div class="design-stage"><div class="design-card dc-a"><div class="dc-top">01</div><div class="dc-photo photo-a"></div><h3>ليالي</h3><span>دافئ • راقي</span></div><div class="design-card dc-b featured"><div class="dc-top">02</div><div class="dc-photo photo-b"></div><h3>رويال</h3><span>فاخر • عصري</span><div class="featured-tag">الأكثر لفتًا</div></div><div class="design-card dc-c"><div class="dc-top">03</div><div class="dc-photo photo-c"></div><h3>كافيه</h3><span>هادئ • بسيط</span></div><div class="design-card dc-d"><div class="dc-top">04</div><div class="dc-photo photo-d"></div><h3>مودرن</h3><span>نظيف • جريء</span></div></div><div class="design-more"><span>+56 تصميم إضافي</span><a href="/register">ابدأ واختر تصميمك ←</a></div></section>
-<section id="how" class="section how"><div class="section-heading centered"><span class="section-kicker">HOW IT WORKS</span><h2>من فكرة لموقع شغال في 3 خطوات.</h2><p>من غير تعقيد، ومن غير ما تحتاج تكون مبرمج.</p></div><div class="steps"><div class="step"><span>01</span><div class="step-icon">✦</div><h3>اختار التصميم</h3><p>اختار الشكل المناسب لهوية مطعمك من مكتبة التصميمات.</p></div><div class="step active"><span>02</span><div class="step-icon">☷</div><h3>اعمل منيوك</h3><p>ضيف الأقسام والأصناف والأسعار والصور وعدّلها وقت ما تحب.</p></div><div class="step"><span>03</span><div class="step-icon">⌁</div><h3>انشر وشارك</h3><p>خد رابط ثابت وQR وشاركه مع زباينك بسهولة.</p></div></div></section>
+<section id="designs" class="section showcase"><div class="section-heading"><div><span class="section-kicker">DESIGN LIBRARY</span><h2>اختار الستايل اللي يشبهك.</h2></div><p>مجموعة تصميمات معمولة للمطاعم والكافيهات، وكل تصميم له شخصية مختلفة.</p></div><div class="design-stage"><div class="design-card dc-a"><div class="dc-top">01</div><div class="dc-photo photo-a"></div><h3>ليالي</h3><span>دافئ • راقي</span></div><div class="design-card dc-b featured"><div class="dc-top">02</div><div class="dc-photo photo-b"></div><h3>رويال</h3><span>فاخر • عصري</span><div class="featured-tag">تصميم مميز</div></div><div class="design-card dc-c"><div class="dc-top">03</div><div class="dc-photo photo-c"></div><h3>كافيه</h3><span>هادئ • بسيط</span></div><div class="design-card dc-d"><div class="dc-top">04</div><div class="dc-photo photo-d"></div><h3>مودرن</h3><span>نظيف • جريء</span></div></div><div class="design-more"><span>+56 تصميم إضافي</span><a href="/register">ابدأ واختر تصميمك ←</a></div></section>
+<section id="how" class="section how"><div class="section-heading centered"><span class="section-kicker">HOW IT WORKS</span><h2>من فكرة لموقع شغال في 3 خطوات.</h2><p>من غير تعقيد، ومن غير ما تحتاج تكون مبرمج.</p></div><div class="steps"><div class="step"><span>01</span><div class="step-icon">✦</div><h3>اختار التصميم</h3><p>اختار الشكل المناسب لهوية مطعمك من مكتبة التصميمات.</p></div><div class="step active"><span>02</span><div class="step-icon">☷</div><h3>جهّز منيو مطعمك</h3><p>ضيف الأقسام والأصناف والأسعار والصور وعدّلها وقت ما تحب.</p></div><div class="step"><span>03</span><div class="step-icon">⌁</div><h3>انشر وشارك</h3><p>خد رابط ثابت وQR وشاركه مع زباينك بسهولة.</p></div></div></section>
 <section id="features" class="section features"><div class="feature-panel"><div><span class="section-kicker">BUILT FOR RESTAURANTS</span><h2>كل اللي مطعمك محتاجه<br>في مكان واحد.</h2><p>من أول شكل الموقع لحد المنيو والـQR. وإنت صاحب القرار في كل تفصيلة.</p><a class="primary-cta dark" href="/register">ابدأ مجانًا <span>←</span></a></div><div class="feature-grid"><div><b>01</b><h3>تعديل سهل</h3><p>الأسعار والأصناف في إيدك.</p></div><div><b>02</b><h3>QR ثابت</h3><p>نفس الرابط حتى مع تحديث المنيو.</p></div><div><b>03</b><h3>PDF للطباعة</h3><p>نسخة مرتبة للطباعة والحفظ.</p></div><div><b>04</b><h3>30 يوم مجانًا</h3><p>جرّب قبل الاشتراك.</p></div></div></div></section>
 <section class="final-cta"><div><span>جاهز تعمل حاجة مختلفة؟</span><h2>موقعك يبدأ من هنا ✨</h2><p>ابدأ مجانًا، وابني حضور يليق بمطعمك.</p></div><a class="primary-cta" href="/register">ابدأ موقعك مجانًا <span>←</span></a></section>
 <footer class="home-footer"><div class="brand"><span class="brand-mark">L</span><span><b>لمسة</b><small>LAMSA</small></span></div><p>منيو وموقع مطعمك، بلمسة واحدة.</p><span>الدعم: ${SUPPORT_PHONE}</span></footer>
-<div id="app" class="app-area"><div class="app-heading"><span class="section-kicker">YOUR ACCOUNT</span><h2>ابدأ من هنا</h2><p>سجّل دخولك أو أنشئ حسابك، وهنكمّل من جوه المن
-```html
-<div class="account-cta">
-  <div class="app-heading">
-    <span class="section-kicker">YOUR ACCOUNT</span>
-    <h2>ابدأ من هنا</h2>
-    <p>سجّل دخولك أو أنشئ حسابك، وهنكمّل من جوه المنصة.</p>
-
-    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:22px">
-      <a class="primary-cta" href="/register">
-        إنشاء حساب مجاني <span>←</span>
-      </a>
-
-      <a class="ghost-cta" href="/login">
-        تسجيل الدخول
-      </a>
-    </div>
-  </div>
-</div>
-</div>`)
-```
+<div id="app" class="app-area"><div class="app-heading"><span class="section-kicker">YOUR ACCOUNT</span><h2>ابدأ من هنا</h2><p>سجّل دخولك أو أنشئ حسابك، وهنكمّل من جوه المنصة.</p><div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:22px"><a class="primary-cta" href="/register">إنشاء حساب مجاني <span>←</span></a><a class="ghost-cta" href="/login">تسجيل الدخول</a></div></div></div>
+</div>`)}
 
 function client(){return `
 const $=s=>document.querySelector(s);
