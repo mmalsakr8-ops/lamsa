@@ -1,6 +1,53 @@
 const COOKIE = "lamsa_session";
 const SESSION_DAYS = 30;
 
+const THEMES = {
+  luxury: {
+    name: "فاخر أسود وذهبي",
+    background: "linear-gradient(135deg,#17120d,#302217 45%,#111)",
+    accent: "#d7ad63",
+    card: "#211b15",
+    text: "#fffaf0"
+  },
+
+  cafe: {
+    name: "كافيه مودرن",
+    background: "linear-gradient(135deg,#f6efe5,#fffaf4)",
+    accent: "#9b6b43",
+    card: "#ffffff",
+    text: "#2d241e"
+  },
+
+  fresh: {
+    name: "أخضر طبيعي",
+    background: "linear-gradient(135deg,#edf5ed,#f8fbf6)",
+    accent: "#4f7b59",
+    card: "#ffffff",
+    text: "#203226"
+  },
+
+  modern: {
+    name: "مودرن",
+    background: "linear-gradient(135deg,#f2f2f2,#ffffff)",
+    accent: "#222222",
+    card: "#ffffff",
+    text: "#171717"
+  },
+
+  dark: {
+    name: "دارك",
+    background: "linear-gradient(135deg,#080808,#1c1c1c)",
+    accent: "#ffffff",
+    card: "#151515",
+    text: "#ffffff"
+  }
+};
+
+
+// =========================
+// MAIN FETCH
+// =========================
+
 export default {
   async fetch(request, env) {
     try {
@@ -129,8 +176,8 @@ async function initDB(env) {
         password_hash TEXT NOT NULL,
         role TEXT NOT NULL DEFAULT 'customer',
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )
-    `),
+      `
+    ),
 
     env.DB.prepare(`
       CREATE TABLE IF NOT EXISTS sessions (
@@ -139,8 +186,8 @@ async function initDB(env) {
         expires_at TEXT NOT NULL,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      )
-    `),
+      `
+    ),
 
     env.DB.prepare(`
       CREATE TABLE IF NOT EXISTS restaurants (
@@ -154,8 +201,8 @@ async function initDB(env) {
         slug TEXT NOT NULL UNIQUE,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      )
-    `),
+      `
+    ),
 
     env.DB.prepare(`
       CREATE TABLE IF NOT EXISTS categories (
@@ -165,8 +212,8 @@ async function initDB(env) {
         sort_order INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE
-      )
-    `),
+      `
+    ),
 
     env.DB.prepare(`
       CREATE TABLE IF NOT EXISTS items (
@@ -181,9 +228,29 @@ async function initDB(env) {
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE,
         FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
-      )
-    `)
+      `
+    )
   ]);
+
+  await ensureRestaurantColumn(env, "theme", "TEXT NOT NULL DEFAULT 'modern'");
+  await ensureRestaurantColumn(env, "background", "TEXT NOT NULL DEFAULT ''");
+}
+
+
+async function ensureRestaurantColumn(env, column, definition) {
+  const result = await env.DB.prepare(
+    "PRAGMA table_info(restaurants)"
+  ).all();
+
+  const exists = (result.results || []).some(
+    row => row.name === column
+  );
+
+  if (!exists) {
+    await env.DB.prepare(
+      `ALTER TABLE restaurants ADD COLUMN ${column} ${definition}`
+    ).run();
+  }
 }
 
 
@@ -270,13 +337,15 @@ async function register(request, env) {
 
   await env.DB.prepare(`
     INSERT INTO restaurants
-    (id, user_id, name, slug)
-    VALUES (?, ?, ?, ?)
+    (id, user_id, name, slug, theme, background)
+    VALUES (?, ?, ?, ?, ?, ?)
   `).bind(
     crypto.randomUUID(),
     id,
     name,
-    slug
+    slug,
+    "modern",
+    ""
   ).run();
 
   const session = await createSession(env, id);
@@ -297,10 +366,8 @@ async function register(request, env) {
       status: 201,
       headers: {
         ...corsHeaders(),
-        "content-type":
-          "application/json; charset=UTF-8",
-        "set-cookie":
-          sessionCookie(session)
+        "content-type": "application/json; charset=UTF-8",
+        "set-cookie": sessionCookie(session)
       }
     }
   );
@@ -319,8 +386,7 @@ async function login(request, env) {
   if (!identifier || !password) {
     return json({
       ok: false,
-      error:
-        "أدخل البريد أو رقم الهاتف وكلمة المرور"
+      error: "أدخل البريد أو رقم الهاتف وكلمة المرور"
     }, 400);
   }
 
@@ -355,24 +421,18 @@ async function login(request, env) {
   }
 
   const session =
-    await createSession(
-      env,
-      user.id
-    );
+    await createSession(env, user.id);
 
   return new Response(
     JSON.stringify({
       ok: true,
-      message:
-        "تم تسجيل الدخول بنجاح"
+      message: "تم تسجيل الدخول بنجاح"
     }),
     {
       headers: {
         ...corsHeaders(),
-        "content-type":
-          "application/json; charset=UTF-8",
-        "set-cookie":
-          sessionCookie(session)
+        "content-type": "application/json; charset=UTF-8",
+        "set-cookie": sessionCookie(session)
       }
     }
   );
@@ -380,8 +440,7 @@ async function login(request, env) {
 
 
 async function createSession(env, userId) {
-  const id =
-    crypto.randomUUID();
+  const id = crypto.randomUUID();
 
   const expires =
     new Date(
@@ -486,10 +545,7 @@ async function currentUser(request, env) {
 
 async function me(request, env) {
   const user =
-    await currentUser(
-      request,
-      env
-    );
+    await currentUser(request, env);
 
   if (!user) {
     return json({
@@ -520,14 +576,12 @@ async function logout(request, env) {
   return new Response(
     JSON.stringify({
       ok: true,
-      message:
-        "تم تسجيل الخروج"
+      message: "تم تسجيل الخروج"
     }),
     {
       headers: {
         ...corsHeaders(),
-        "content-type":
-          "application/json; charset=UTF-8",
+        "content-type": "application/json; charset=UTF-8",
         "set-cookie":
           `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`
       }
@@ -542,22 +596,14 @@ async function logout(request, env) {
 
 async function getRestaurant(request, env) {
   const user =
-    await requireUser(
-      request,
-      env
-    );
+    await requireUser(request, env);
 
   if (!user) {
     return unauthorized();
   }
 
   const restaurant =
-    await env.DB.prepare(`
-      SELECT *
-      FROM restaurants
-      WHERE user_id = ?
-      LIMIT 1
-    `).bind(user.id).first();
+    await getRestaurantByUser(env, user.id);
 
   return json({
     ok: true,
@@ -568,10 +614,7 @@ async function getRestaurant(request, env) {
 
 async function updateRestaurant(request, env) {
   const user =
-    await requireUser(
-      request,
-      env
-    );
+    await requireUser(request, env);
 
   if (!user) {
     return unauthorized();
@@ -595,6 +638,14 @@ async function updateRestaurant(request, env) {
   const logo =
     clean(body.logo);
 
+  const theme =
+    THEMES[body.theme]
+      ? body.theme
+      : "modern";
+
+  const background =
+    clean(body.background);
+
   if (!name) {
     return json({
       ok: false,
@@ -603,19 +654,10 @@ async function updateRestaurant(request, env) {
   }
 
   const restaurant =
-    await env.DB.prepare(`
-      SELECT *
-      FROM restaurants
-      WHERE user_id = ?
-      LIMIT 1
-    `).bind(user.id).first();
-
-  if (!restaurant) {
-    return json({
-      ok: false,
-      error: "المطعم غير موجود"
-    }, 404);
-  }
+    await getRestaurantByUser(
+      env,
+      user.id
+    );
 
   await env.DB.prepare(`
     UPDATE restaurants
@@ -624,7 +666,9 @@ async function updateRestaurant(request, env) {
       description = ?,
       phone = ?,
       address = ?,
-      logo = ?
+      logo = ?,
+      theme = ?,
+      background = ?
     WHERE user_id = ?
   `).bind(
     name,
@@ -632,13 +676,14 @@ async function updateRestaurant(request, env) {
     phone,
     address,
     logo,
+    theme,
+    background,
     user.id
   ).run();
 
   return json({
     ok: true,
-    message:
-      "تم حفظ بيانات المطعم"
+    message: "تم حفظ بيانات المطعم"
   });
 }
 
@@ -649,10 +694,7 @@ async function updateRestaurant(request, env) {
 
 async function getCategories(request, env) {
   const user =
-    await requireUser(
-      request,
-      env
-    );
+    await requireUser(request, env);
 
   if (!user) {
     return unauthorized();
@@ -684,10 +726,7 @@ async function getCategories(request, env) {
 
 async function createCategory(request, env) {
   const user =
-    await requireUser(
-      request,
-      env
-    );
+    await requireUser(request, env);
 
   if (!user) {
     return unauthorized();
@@ -708,8 +747,7 @@ async function createCategory(request, env) {
   if (!name) {
     return json({
       ok: false,
-      error:
-        "اسم القسم مطلوب"
+      error: "اسم القسم مطلوب"
     }, 400);
   }
 
@@ -738,8 +776,7 @@ async function createCategory(request, env) {
 
   return json({
     ok: true,
-    message:
-      "تم إضافة القسم",
+    message: "تم إضافة القسم",
     category: {
       id,
       name
@@ -750,10 +787,7 @@ async function createCategory(request, env) {
 
 async function deleteCategory(request, env) {
   const user =
-    await requireUser(
-      request,
-      env
-    );
+    await requireUser(request, env);
 
   if (!user) {
     return unauthorized();
@@ -787,19 +821,9 @@ async function deleteCategory(request, env) {
   if (!category) {
     return json({
       ok: false,
-      error:
-        "القسم غير موجود"
+      error: "القسم غير موجود"
     }, 404);
   }
-
-  await env.DB.prepare(`
-    DELETE FROM categories
-    WHERE id = ?
-    AND restaurant_id = ?
-  `).bind(
-    id,
-    restaurant.id
-  ).run();
 
   await env.DB.prepare(`
     UPDATE items
@@ -811,10 +835,18 @@ async function deleteCategory(request, env) {
     restaurant.id
   ).run();
 
+  await env.DB.prepare(`
+    DELETE FROM categories
+    WHERE id = ?
+    AND restaurant_id = ?
+  `).bind(
+    id,
+    restaurant.id
+  ).run();
+
   return json({
     ok: true,
-    message:
-      "تم حذف القسم"
+    message: "تم حذف القسم"
   });
 }
 
@@ -825,10 +857,7 @@ async function deleteCategory(request, env) {
 
 async function getItems(request, env) {
   const user =
-    await requireUser(
-      request,
-      env
-    );
+    await requireUser(request, env);
 
   if (!user) {
     return unauthorized();
@@ -864,10 +893,7 @@ async function getItems(request, env) {
 
 async function createItem(request, env) {
   const user =
-    await requireUser(
-      request,
-      env
-    );
+    await requireUser(request, env);
 
   if (!user) {
     return unauthorized();
@@ -900,8 +926,7 @@ async function createItem(request, env) {
   if (!name) {
     return json({
       ok: false,
-      error:
-        "اسم الصنف مطلوب"
+      error: "اسم الصنف مطلوب"
     }, 400);
   }
 
@@ -911,8 +936,7 @@ async function createItem(request, env) {
   ) {
     return json({
       ok: false,
-      error:
-        "السعر غير صحيح"
+      error: "السعر غير صحيح"
     }, 400);
   }
 
@@ -932,8 +956,7 @@ async function createItem(request, env) {
     if (!category) {
       return json({
         ok: false,
-        error:
-          "القسم غير صحيح"
+        error: "القسم غير صحيح"
       }, 400);
     }
   }
@@ -976,8 +999,7 @@ async function createItem(request, env) {
 
   return json({
     ok: true,
-    message:
-      "تم إضافة الصنف",
+    message: "تم إضافة الصنف",
     item: {
       id,
       name,
@@ -993,10 +1015,7 @@ async function createItem(request, env) {
 
 async function updateItem(request, env) {
   const user =
-    await requireUser(
-      request,
-      env
-    );
+    await requireUser(request, env);
 
   if (!user) {
     return unauthorized();
@@ -1036,8 +1055,7 @@ async function updateItem(request, env) {
   if (!name) {
     return json({
       ok: false,
-      error:
-        "اسم الصنف مطلوب"
+      error: "اسم الصنف مطلوب"
     }, 400);
   }
 
@@ -1047,8 +1065,7 @@ async function updateItem(request, env) {
   ) {
     return json({
       ok: false,
-      error:
-        "السعر غير صحيح"
+      error: "السعر غير صحيح"
     }, 400);
   }
 
@@ -1067,8 +1084,7 @@ async function updateItem(request, env) {
   if (!item) {
     return json({
       ok: false,
-      error:
-        "الصنف غير موجود"
+      error: "الصنف غير موجود"
     }, 404);
   }
 
@@ -1088,8 +1104,7 @@ async function updateItem(request, env) {
     if (!category) {
       return json({
         ok: false,
-        error:
-          "القسم غير صحيح"
+        error: "القسم غير صحيح"
       }, 400);
     }
   }
@@ -1116,18 +1131,14 @@ async function updateItem(request, env) {
 
   return json({
     ok: true,
-    message:
-      "تم تعديل الصنف"
+    message: "تم تعديل الصنف"
   });
 }
 
 
 async function deleteItem(request, env) {
   const user =
-    await requireUser(
-      request,
-      env
-    );
+    await requireUser(request, env);
 
   if (!user) {
     return unauthorized();
@@ -1146,28 +1157,18 @@ async function deleteItem(request, env) {
       )[1]
     );
 
-  const result =
-    await env.DB.prepare(`
-      DELETE FROM items
-      WHERE id = ?
-      AND restaurant_id = ?
-    `).bind(
-      id,
-      restaurant.id
-    ).run();
-
-  if (!result.success) {
-    return json({
-      ok: false,
-      error:
-        "تعذر حذف الصنف"
-    }, 400);
-  }
+  await env.DB.prepare(`
+    DELETE FROM items
+    WHERE id = ?
+    AND restaurant_id = ?
+  `).bind(
+    id,
+    restaurant.id
+  ).run();
 
   return json({
     ok: true,
-    message:
-      "تم حذف الصنف"
+    message: "تم حذف الصنف"
   });
 }
 
@@ -1186,9 +1187,7 @@ async function publicMenu(request, env) {
 
   if (!slug) {
     return html(
-      '<h1 style="text-align:center;margin-top:80px">' +
-      'المنيو غير موجود' +
-      '</h1>',
+      errorMenuPage("المنيو غير موجود"),
       404
     );
   }
@@ -1203,9 +1202,7 @@ async function publicMenu(request, env) {
 
   if (!restaurant) {
     return html(
-      '<h1 style="text-align:center;margin-top:80px">' +
-      'المنيو غير موجود' +
-      '</h1>',
+      errorMenuPage("المنيو غير موجود"),
       404
     );
   }
@@ -1215,7 +1212,7 @@ async function publicMenu(request, env) {
       SELECT *
       FROM categories
       WHERE restaurant_id = ?
-      ORDER BY sort_order ASC
+      ORDER BY sort_order ASC, created_at ASC
     `).bind(
       restaurant.id
     ).all();
@@ -1225,7 +1222,7 @@ async function publicMenu(request, env) {
       SELECT *
       FROM items
       WHERE restaurant_id = ?
-      ORDER BY sort_order ASC
+      ORDER BY sort_order ASC, created_at ASC
     `).bind(
       restaurant.id
     ).all();
@@ -1241,14 +1238,11 @@ async function publicMenu(request, env) {
 
 
 // =========================
-// HELPERS
+// RESTAURANT HELPERS
 // =========================
 
 async function requireUser(request, env) {
-  return currentUser(
-    request,
-    env
-  );
+  return currentUser(request, env);
 }
 
 
@@ -1281,13 +1275,15 @@ async function getRestaurantByUser(env, userId) {
 
     await env.DB.prepare(`
       INSERT INTO restaurants
-      (id, user_id, name, slug)
-      VALUES (?, ?, ?, ?)
+      (id, user_id, name, slug, theme, background)
+      VALUES (?, ?, ?, ?, ?, ?)
     `).bind(
       id,
       userId,
       user?.name || "",
-      slug
+      slug,
+      "modern",
+      ""
     ).run();
 
     restaurant =
@@ -1338,32 +1334,42 @@ async function uniqueSlug(env, name) {
     }
 
     number++;
+
     slug =
       `${base}-${number}`;
   }
 }
 
 
+// =========================
+// GENERAL HELPERS
+// =========================
+
 function unauthorized() {
   return json({
     ok: false,
-    error:
-      "يجب تسجيل الدخول أولاً"
+    error: "يجب تسجيل الدخول أولاً"
   }, 401);
 }
 
 
 function clean(value) {
-  return String(
-    value || ""
-  ).trim();
+  return String(value || "").trim();
 }
 
 
 function isEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-    email
-  );
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 
@@ -1448,10 +1454,7 @@ async function hashPassword(password) {
 }
 
 
-async function verifyPassword(
-  password,
-  stored
-) {
+async function verifyPassword(password, stored) {
   try {
     const parts =
       stored.split("$");
@@ -1513,8 +1516,7 @@ function timingSafeEqual(a, b) {
     i < a.length;
     i++
   ) {
-    result |=
-      a[i] ^ b[i];
+    result |= a[i] ^ b[i];
   }
 
   return result === 0;
@@ -1525,9 +1527,7 @@ function bytesToBase64(bytes) {
   let binary = "";
 
   for (const byte of bytes) {
-    binary += String.fromCharCode(
-      byte
-    );
+    binary += String.fromCharCode(byte);
   }
 
   return btoa(binary);
@@ -1539,9 +1539,7 @@ function base64ToBytes(value) {
     atob(value);
 
   const bytes =
-    new Uint8Array(
-      binary.length
-    );
+    new Uint8Array(binary.length);
 
   for (
     let i = 0;
@@ -1557,7 +1555,7 @@ function base64ToBytes(value) {
 
 
 // =========================
-// HOME
+// HOME PAGE
 // =========================
 
 function homePage() {
@@ -1566,138 +1564,168 @@ function homePage() {
 <html lang="ar" dir="rtl">
 
 <head>
-
 <meta charset="UTF-8">
-
-<meta name="viewport"
-content="width=device-width,initial-scale=1">
-
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>لمسة | LAMSA</title>
 
 <style>
 
 *{
-box-sizing:border-box
+  box-sizing:border-box;
 }
 
 body{
-margin:0;
-font-family:Arial,sans-serif;
-background:#f8f6f2;
-color:#202020;
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:#f7f3ed;
+  color:#1d1d1d;
 }
 
 header{
-height:76px;
-padding:0 7%;
-background:#fff;
-border-bottom:1px solid #eee;
-display:flex;
-align-items:center;
-justify-content:space-between;
+  height:76px;
+  padding:0 7%;
+  background:rgba(255,255,255,.92);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid #eee;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
 }
 
-.logo{
-font-size:28px;
-font-weight:900;
+.brand{
+  display:flex;
+  align-items:center;
+  gap:10px;
 }
 
-.logo small{
-display:block;
-font-size:10px;
-letter-spacing:4px;
-color:#999;
-direction:ltr;
+.logo-mark{
+  width:43px;
+  height:43px;
+  border-radius:14px;
+  background:#1f1b17;
+  color:#d9b06a;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:22px;
+  font-weight:900;
+  box-shadow:0 8px 25px rgba(0,0,0,.12);
 }
 
-button{
-cursor:pointer;
-border:0;
-font-family:inherit;
+.logo-text{
+  font-size:25px;
+  font-weight:900;
+}
+
+.logo-text small{
+  display:block;
+  direction:ltr;
+  font-size:8px;
+  letter-spacing:4px;
+  color:#9a8b7b;
 }
 
 .login{
-background:#202020;
-color:white;
-padding:12px 22px;
-border-radius:10px;
+  background:#211d19;
+  color:white;
+  border:0;
+  padding:12px 22px;
+  border-radius:12px;
+  font-weight:bold;
+  cursor:pointer;
 }
 
 .hero{
-min-height:calc(100vh - 76px);
-display:flex;
-align-items:center;
-justify-content:center;
-text-align:center;
-padding:50px 20px;
+  min-height:calc(100vh - 76px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:60px 20px;
+  background:
+    radial-gradient(circle at 20% 20%,rgba(210,170,105,.18),transparent 30%),
+    radial-gradient(circle at 80% 70%,rgba(120,90,50,.1),transparent 30%);
 }
 
 .hero-box{
-max-width:850px;
+  max-width:900px;
 }
 
 .badge{
-display:inline-block;
-background:#eee5da;
-color:#79512e;
-padding:9px 18px;
-border-radius:30px;
-margin-bottom:25px;
+  display:inline-block;
+  padding:10px 18px;
+  border-radius:40px;
+  background:#eee4d7;
+  color:#76552f;
+  font-weight:bold;
+  margin-bottom:24px;
 }
 
 h1{
-font-size:clamp(42px,8vw,78px);
-line-height:1.15;
-margin:0;
+  font-size:clamp(45px,8vw,82px);
+  line-height:1.08;
+  margin:0;
+  letter-spacing:-2px;
 }
 
 h1 span{
-color:#a86c35;
+  color:#a87539;
 }
 
 .hero p{
-color:#666;
-font-size:19px;
-line-height:1.9;
-max-width:680px;
-margin:25px auto;
+  color:#6d6964;
+  font-size:19px;
+  line-height:1.9;
+  max-width:700px;
+  margin:25px auto;
 }
 
 .actions{
-display:flex;
-justify-content:center;
-gap:12px;
-flex-wrap:wrap;
-margin-top:30px;
+  display:flex;
+  justify-content:center;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-top:32px;
 }
 
-.primary,.secondary{
-padding:15px 30px;
-border-radius:12px;
-font-size:16px;
+.primary,
+.secondary{
+  padding:15px 30px;
+  border-radius:13px;
+  font-size:16px;
+  font-weight:bold;
+  cursor:pointer;
 }
 
 .primary{
-background:#202020;
-color:white;
+  background:#211d19;
+  color:white;
 }
 
 .secondary{
-background:white;
-border:1px solid #ddd;
+  background:white;
+  color:#211d19;
+  border:1px solid #ddd4ca;
 }
 
 </style>
-
 </head>
 
 <body>
 
 <header>
 
-<div class="logo">
+<div class="brand">
+
+<div class="logo-mark">
+ل
+</div>
+
+<div class="logo-text">
 لمسة
 <small>LAMSA</small>
+</div>
+
 </div>
 
 <button
@@ -1722,8 +1750,8 @@ onclick="location.href='/login'">
 </h1>
 
 <p>
-أنشئ موقع مطعمك أو كافيهك ومنيوك الرقمية
-بسهولة، وتحكم في بياناتك وأسعارك وأصنافك بنفسك.
+أنشئ موقع مطعمك ومنيوك الرقمية بسهولة،
+واختار التصميم والخلفية والألوان التي تناسب علامتك.
 </p>
 
 <div class="actions">
@@ -1747,14 +1775,13 @@ onclick="location.href='/login'">
 </section>
 
 </body>
-
 </html>
 `;
 }
 
 
 // =========================
-// AUTH
+// AUTH PAGE
 // =========================
 
 function authPage() {
@@ -1765,115 +1792,143 @@ function authPage() {
 <head>
 
 <meta charset="UTF-8">
-
-<meta name="viewport"
-content="width=device-width,initial-scale=1">
-
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>الدخول | لمسة</title>
 
 <style>
 
-*{box-sizing:border-box}
+*{
+  box-sizing:border-box;
+}
 
 body{
-margin:0;
-min-height:100vh;
-font-family:Arial,sans-serif;
-background:#f7f5f1;
-display:flex;
-align-items:center;
-justify-content:center;
-padding:20px;
-color:#222;
+  margin:0;
+  min-height:100vh;
+  font-family:Arial,sans-serif;
+  background:
+    radial-gradient(circle at top,#eee2d3,#f7f5f1 50%);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  color:#222;
 }
 
 .card{
-width:100%;
-max-width:460px;
-background:white;
-border:1px solid #eee;
-border-radius:22px;
-padding:32px;
-box-shadow:0 15px 50px rgba(0,0,0,.06);
+  width:100%;
+  max-width:460px;
+  background:white;
+  border:1px solid #eee;
+  border-radius:25px;
+  padding:32px;
+  box-shadow:0 25px 70px rgba(0,0,0,.08);
+}
+
+.brand{
+  text-align:center;
+  margin-bottom:25px;
+}
+
+.mark{
+  width:55px;
+  height:55px;
+  margin:auto;
+  border-radius:18px;
+  background:#211d19;
+  color:#d8ad63;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:28px;
+  font-weight:900;
 }
 
 .logo{
-text-align:center;
-font-size:32px;
-font-weight:900;
-margin-bottom:8px;
+  margin-top:10px;
+  font-size:32px;
+  font-weight:900;
 }
 
 .subtitle{
-text-align:center;
-color:#777;
-margin-bottom:28px;
+  text-align:center;
+  color:#777;
+  margin-bottom:25px;
+  line-height:1.7;
 }
 
 .tabs{
-display:grid;
-grid-template-columns:1fr 1fr;
-background:#f3f1ed;
-padding:5px;
-border-radius:12px;
-margin-bottom:24px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  background:#f2efeb;
+  padding:5px;
+  border-radius:13px;
+  margin-bottom:24px;
 }
 
 .tab{
-padding:12px;
-border-radius:9px;
-background:transparent;
+  padding:12px;
+  border:0;
+  border-radius:9px;
+  background:transparent;
+  cursor:pointer;
+  font-family:inherit;
 }
 
 .tab.active{
-background:#222;
-color:#fff;
+  background:#222;
+  color:#fff;
 }
 
 label{
-display:block;
-margin:14px 0 7px;
-font-weight:700;
+  display:block;
+  margin:14px 0 7px;
+  font-weight:bold;
 }
 
 input{
-width:100%;
-padding:14px;
-border:1px solid #ddd;
-border-radius:11px;
-font-size:16px;
-outline:none;
+  width:100%;
+  padding:14px;
+  border:1px solid #ddd;
+  border-radius:11px;
+  font-size:16px;
+  outline:none;
+}
+
+input:focus{
+  border-color:#a87943;
 }
 
 .submit{
-width:100%;
-padding:15px;
-margin-top:22px;
-background:#222;
-color:#fff;
-border-radius:11px;
-font-size:16px;
+  width:100%;
+  padding:15px;
+  margin-top:22px;
+  background:#222;
+  color:#fff;
+  border:0;
+  border-radius:11px;
+  font-size:16px;
+  cursor:pointer;
 }
 
 .message{
-margin-top:16px;
-padding:12px;
-border-radius:10px;
-background:#f4f4f4;
-display:none;
-line-height:1.6;
+  margin-top:16px;
+  padding:12px;
+  border-radius:10px;
+  background:#f4f4f4;
+  display:none;
+  line-height:1.6;
 }
 
 .back{
-display:block;
-text-align:center;
-margin-top:20px;
-color:#777;
-text-decoration:none;
+  display:block;
+  text-align:center;
+  margin-top:20px;
+  color:#777;
+  text-decoration:none;
 }
 
 .hidden{
-display:none;
+  display:none;
 }
 
 </style>
@@ -1884,8 +1939,16 @@ display:none;
 
 <div class="card">
 
+<div class="brand">
+
+<div class="mark">
+ل
+</div>
+
 <div class="logo">
 لمسة
+</div>
+
 </div>
 
 <div class="subtitle">
@@ -1992,9 +2055,7 @@ id="message"
 class="message">
 </div>
 
-<a
-href="/"
-class="back">
+<a href="/" class="back">
 ← العودة للرئيسية
 </a>
 
@@ -2003,258 +2064,155 @@ class="back">
 <script>
 
 const loginForm =
-document.getElementById(
-  "loginForm"
-);
+document.getElementById("loginForm");
 
 const registerForm =
-document.getElementById(
-  "registerForm"
-);
+document.getElementById("registerForm");
 
 const loginTab =
-document.getElementById(
-  "loginTab"
-);
+document.getElementById("loginTab");
 
 const registerTab =
-document.getElementById(
-  "registerTab"
-);
+document.getElementById("registerTab");
 
 const message =
-document.getElementById(
-  "message"
-);
-
+document.getElementById("message");
 
 function showMessage(text){
   message.textContent = text;
   message.style.display = "block";
 }
 
-
 function showLogin(){
 
-  loginForm.classList.remove(
-    "hidden"
-  );
+  loginForm.classList.remove("hidden");
+  registerForm.classList.add("hidden");
 
-  registerForm.classList.add(
-    "hidden"
-  );
+  loginTab.classList.add("active");
+  registerTab.classList.remove("active");
 
-  loginTab.classList.add(
-    "active"
-  );
-
-  registerTab.classList.remove(
-    "active"
-  );
-
-  message.style.display =
-    "none";
+  message.style.display = "none";
 }
-
 
 function showRegister(){
 
-  loginForm.classList.add(
-    "hidden"
-  );
+  loginForm.classList.add("hidden");
+  registerForm.classList.remove("hidden");
 
-  registerForm.classList.remove(
-    "hidden"
-  );
+  loginTab.classList.remove("active");
+  registerTab.classList.add("active");
 
-  loginTab.classList.remove(
-    "active"
-  );
-
-  registerTab.classList.add(
-    "active"
-  );
-
-  message.style.display =
-    "none";
+  message.style.display = "none";
 }
 
+loginForm.addEventListener("submit",async function(e){
 
-loginForm.addEventListener(
-  "submit",
-  async function(e){
+  e.preventDefault();
 
-    e.preventDefault();
+  const button =
+    loginForm.querySelector("button[type=submit]");
 
-    const button =
-      loginForm.querySelector(
-        "button[type=submit]"
+  button.disabled = true;
+  button.textContent = "جارٍ تسجيل الدخول...";
+
+  try{
+
+    const response =
+      await fetch("/api/login",{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        credentials:"same-origin",
+        body:JSON.stringify({
+          identifier:
+            document.getElementById("loginIdentifier").value.trim(),
+          password:
+            document.getElementById("loginPassword").value
+        })
+      });
+
+    const data =
+      await response.json();
+
+    if(!response.ok || !data.ok){
+      throw new Error(
+        data.error || "تعذر تسجيل الدخول"
       );
-
-    button.disabled = true;
-
-    button.textContent =
-      "جارٍ تسجيل الدخول...";
-
-    try{
-
-      const response =
-        await fetch(
-          "/api/login",
-          {
-            method:"POST",
-
-            headers:{
-              "Content-Type":
-                "application/json"
-            },
-
-            credentials:
-              "same-origin",
-
-            body:
-              JSON.stringify({
-
-                identifier:
-                  document.getElementById(
-                    "loginIdentifier"
-                  ).value.trim(),
-
-                password:
-                  document.getElementById(
-                    "loginPassword"
-                  ).value
-
-              })
-          }
-        );
-
-      const data =
-        await response.json();
-
-      if (
-        !response.ok ||
-        !data.ok
-      ) {
-        throw new Error(
-          data.error ||
-          "تعذر تسجيل الدخول"
-        );
-      }
-
-      location.href =
-        "/dashboard";
-
-    }catch(error){
-
-      showMessage(
-        error.message
-      );
-
-      button.disabled = false;
-
-      button.textContent =
-        "تسجيل الدخول";
     }
 
+    location.href="/dashboard";
+
+  }catch(error){
+
+    showMessage(error.message);
+
+    button.disabled=false;
+    button.textContent="تسجيل الدخول";
   }
-);
 
+});
 
-registerForm.addEventListener(
-  "submit",
-  async function(e){
+registerForm.addEventListener("submit",async function(e){
 
-    e.preventDefault();
+  e.preventDefault();
 
-    const button =
-      registerForm.querySelector(
-        "button[type=submit]"
+  const button =
+    registerForm.querySelector("button[type=submit]");
+
+  button.disabled=true;
+  button.textContent="جارٍ إنشاء الحساب...";
+
+  try{
+
+    const response =
+      await fetch("/api/register",{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        credentials:"same-origin",
+        body:JSON.stringify({
+
+          name:
+            document.getElementById("registerName").value.trim(),
+
+          phone:
+            document.getElementById("registerPhone").value.trim(),
+
+          email:
+            document.getElementById("registerEmail").value.trim(),
+
+          password:
+            document.getElementById("registerPassword").value
+
+        })
+      });
+
+    const data =
+      await response.json();
+
+    if(!response.ok || !data.ok){
+      throw new Error(
+        data.error || "تعذر إنشاء الحساب"
       );
-
-    button.disabled = true;
-
-    button.textContent =
-      "جارٍ إنشاء الحساب...";
-
-    try{
-
-      const response =
-        await fetch(
-          "/api/register",
-          {
-            method:"POST",
-
-            headers:{
-              "Content-Type":
-                "application/json"
-            },
-
-            credentials:
-              "same-origin",
-
-            body:
-              JSON.stringify({
-
-                name:
-                  document.getElementById(
-                    "registerName"
-                  ).value.trim(),
-
-                phone:
-                  document.getElementById(
-                    "registerPhone"
-                  ).value.trim(),
-
-                email:
-                  document.getElementById(
-                    "registerEmail"
-                  ).value.trim(),
-
-                password:
-                  document.getElementById(
-                    "registerPassword"
-                  ).value
-
-              })
-          }
-        );
-
-      const data =
-        await response.json();
-
-      if (
-        !response.ok ||
-        !data.ok
-      ) {
-        throw new Error(
-          data.error ||
-          "تعذر إنشاء الحساب"
-        );
-      }
-
-      location.href =
-        "/dashboard";
-
-    }catch(error){
-
-      showMessage(
-        error.message
-      );
-
-      button.disabled = false;
-
-      button.textContent =
-        "إنشاء الحساب";
     }
 
+    location.href="/dashboard";
+
+  }catch(error){
+
+    showMessage(error.message);
+
+    button.disabled=false;
+    button.textContent="إنشاء الحساب";
   }
-);
+
+});
 
 </script>
 
 </body>
-
 </html>
 `;
 }
@@ -2265,6 +2223,45 @@ registerForm.addEventListener(
 // =========================
 
 function dashboardPage() {
+  const themeCards =
+    Object.entries(THEMES)
+      .map(([key, theme]) => {
+
+        return `
+<div
+class="theme-card"
+data-theme="${key}"
+onclick="selectTheme('${key}')">
+
+<div
+class="theme-preview"
+style="background:${theme.background}">
+
+<div class="preview-logo">
+ل
+</div>
+
+<div class="preview-line"></div>
+<div class="preview-line short"></div>
+
+</div>
+
+<div class="theme-name">
+${theme.name}
+</div>
+
+<div
+class="theme-check"
+id="check-${key}">
+✓
+</div>
+
+</div>
+`;
+
+      })
+      .join("");
+
   return `
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -2272,184 +2269,525 @@ function dashboardPage() {
 <head>
 
 <meta charset="UTF-8">
-
-<meta name="viewport"
-content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 
 <title>لوحة التحكم | لمسة</title>
 
 <style>
 
 *{
-box-sizing:border-box
+  box-sizing:border-box;
 }
 
 body{
-margin:0;
-font-family:Arial,sans-serif;
-background:#f6f4f0;
-color:#222;
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:#f5f2ee;
+  color:#202020;
 }
 
 header{
-background:white;
-min-height:70px;
-border-bottom:1px solid #eee;
-padding:12px 6%;
-display:flex;
-align-items:center;
-justify-content:space-between;
-gap:15px;
+  background:rgba(255,255,255,.96);
+  backdrop-filter:blur(15px);
+  min-height:76px;
+  border-bottom:1px solid #e8e3dc;
+  padding:12px 5%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:15px;
+  position:sticky;
+  top:0;
+  z-index:50;
 }
 
-.logo{
-font-size:26px;
-font-weight:900;
+.brand{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.logo-mark{
+  width:42px;
+  height:42px;
+  border-radius:13px;
+  background:#211d19;
+  color:#d9b06a;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:21px;
+  font-weight:900;
+}
+
+.logo-text{
+  font-size:24px;
+  font-weight:900;
+}
+
+.logo-text small{
+  display:block;
+  direction:ltr;
+  font-size:7px;
+  letter-spacing:3px;
+  color:#999;
+}
+
+.header-actions{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+
+.preview-btn,
+.logout{
+  border:0;
+  border-radius:11px;
+  padding:11px 16px;
+  cursor:pointer;
+  font-family:inherit;
+  font-weight:bold;
+}
+
+.preview-btn{
+  background:#eee8df;
+  color:#5e472e;
 }
 
 .logout{
-background:#222;
-color:white;
-border:0;
-border-radius:10px;
-padding:11px 18px;
+  background:#211d19;
+  color:white;
 }
 
 main{
-max-width:1150px;
-margin:auto;
-padding:25px 18px 50px;
+  max-width:1200px;
+  margin:auto;
+  padding:28px 16px 60px;
 }
 
 .welcome{
-background:#222;
-color:white;
-border-radius:20px;
-padding:28px;
-margin-bottom:20px;
+  position:relative;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 80% 20%,rgba(216,176,106,.35),transparent 30%),
+    linear-gradient(135deg,#29231e,#151311);
+  color:white;
+  border-radius:24px;
+  padding:30px;
+  margin-bottom:20px;
+  box-shadow:0 18px 45px rgba(0,0,0,.12);
+}
+
+.welcome:after{
+  content:"ل";
+  position:absolute;
+  left:30px;
+  top:-20px;
+  font-size:180px;
+  font-weight:900;
+  color:rgba(255,255,255,.035);
 }
 
 .welcome h1{
-margin:0 0 8px;
+  margin:0 0 9px;
+  font-size:30px;
 }
 
 .welcome p{
-margin:0;
-color:#ddd;
+  margin:0;
+  color:#ddd;
+  line-height:1.8;
 }
 
 .grid{
-display:grid;
-grid-template-columns:
-repeat(2,minmax(0,1fr));
-gap:16px;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:16px;
 }
 
 .card{
-background:white;
-border:1px solid #e8e5df;
-border-radius:18px;
-padding:22px;
+  background:white;
+  border:1px solid #e8e3dc;
+  border-radius:20px;
+  padding:22px;
+  box-shadow:0 7px 25px rgba(0,0,0,.025);
 }
 
 .card h2{
-margin-top:0;
-}
-
-input,textarea,select{
-width:100%;
-padding:13px;
-border:1px solid #ddd;
-border-radius:10px;
-font:inherit;
-margin-top:7px;
-}
-
-textarea{
-min-height:90px;
-resize:vertical;
+  margin:0 0 16px;
+  font-size:21px;
 }
 
 label{
-display:block;
-margin-top:13px;
-font-weight:bold;
+  display:block;
+  margin:14px 0 7px;
+  font-weight:bold;
+}
+
+input,
+textarea,
+select{
+  width:100%;
+  padding:13px;
+  border:1px solid #ddd7cf;
+  border-radius:11px;
+  font:inherit;
+  outline:none;
+  background:#fff;
+}
+
+input:focus,
+textarea:focus,
+select:focus{
+  border-color:#b5864e;
+}
+
+textarea{
+  min-height:90px;
+  resize:vertical;
 }
 
 .save{
-margin-top:15px;
-width:100%;
-padding:13px;
-border:0;
-border-radius:10px;
-background:#222;
-color:white;
-font:inherit;
+  margin-top:15px;
+  width:100%;
+  padding:13px;
+  border:0;
+  border-radius:11px;
+  background:#211d19;
+  color:white;
+  font:inherit;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.message{
+  margin-top:10px;
+  min-height:20px;
+  color:#53704d;
+  font-size:13px;
 }
 
 .menu-link{
-display:block;
-background:#f4f1eb;
-padding:14px;
-border-radius:10px;
-margin-top:12px;
-word-break:break-all;
+  display:block;
+  background:#f6f2ec;
+  color:#6d5133;
+  padding:14px;
+  border-radius:11px;
+  margin-top:12px;
+  word-break:break-all;
+  text-decoration:none;
 }
 
-.category-row,
-.item-row{
-border:1px solid #eee;
-border-radius:12px;
-padding:13px;
-margin-top:10px;
-}
-
-.item-row{
-display:flex;
-justify-content:space-between;
-gap:10px;
-align-items:center;
-}
-
-.small{
-font-size:13px;
-color:#777;
-}
-
-.danger{
-background:#f2eeee;
-color:#8b2525;
-border:0;
-border-radius:8px;
-padding:8px 12px;
-}
-
-.add{
-background:#222;
-color:white;
-border:0;
-border-radius:9px;
-padding:10px 15px;
-margin-top:10px;
+.menu-open{
+  display:inline-block;
+  margin-top:10px;
+  background:#211d19;
+  color:white;
+  text-decoration:none;
+  padding:11px 17px;
+  border-radius:10px;
+  font-weight:bold;
 }
 
 .full{
-grid-column:1/-1;
+  grid-column:1/-1;
+}
+
+.category-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  border:1px solid #eee9e2;
+  border-radius:12px;
+  padding:12px;
+  margin-top:9px;
+  background:#fffdfa;
+}
+
+.add{
+  background:#211d19;
+  color:white;
+  border:0;
+  border-radius:10px;
+  padding:11px 15px;
+  margin-top:10px;
+  cursor:pointer;
+  font-family:inherit;
+}
+
+.danger{
+  background:#f8eeee;
+  color:#8d3030;
+  border:0;
+  border-radius:8px;
+  padding:8px 11px;
+  cursor:pointer;
+  font-family:inherit;
+}
+
+.item-row{
+  border:1px solid #eee9e2;
+  border-radius:15px;
+  padding:13px;
+  margin-top:10px;
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  background:#fff;
+}
+
+.item-main{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  min-width:0;
+}
+
+.item-image{
+  width:70px;
+  height:70px;
+  border-radius:12px;
+  object-fit:cover;
+  background:#eee;
+  flex:none;
+}
+
+.item-info{
+  min-width:0;
+}
+
+.item-name{
+  font-weight:bold;
+  font-size:17px;
+}
+
+.small{
+  font-size:13px;
+  color:#777;
+  line-height:1.7;
+}
+
+.item-actions{
+  display:flex;
+  gap:7px;
+  flex:none;
+}
+
+.section-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.themes{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:10px;
+}
+
+.theme-card{
+  position:relative;
+  border:2px solid transparent;
+  border-radius:15px;
+  padding:7px;
+  background:#faf9f7;
+  cursor:pointer;
+  transition:.2s;
+}
+
+.theme-card:hover{
+  transform:translateY(-2px);
+}
+
+.theme-card.selected{
+  border-color:#b2834c;
+}
+
+.theme-preview{
+  height:110px;
+  border-radius:10px;
+  padding:13px;
+  overflow:hidden;
+  position:relative;
+}
+
+.preview-logo{
+  width:28px;
+  height:28px;
+  border-radius:9px;
+  background:rgba(255,255,255,.18);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:900;
+  font-size:14px;
+}
+
+.preview-line{
+  height:7px;
+  width:70%;
+  border-radius:20px;
+  background:rgba(255,255,255,.45);
+  margin-top:15px;
+}
+
+.preview-line.short{
+  width:45%;
+  margin-top:7px;
+}
+
+.theme-name{
+  text-align:center;
+  padding:9px 2px 4px;
+  font-size:12px;
+  font-weight:bold;
+}
+
+.theme-check{
+  position:absolute;
+  top:9px;
+  left:9px;
+  width:22px;
+  height:22px;
+  border-radius:50%;
+  background:#b2834c;
+  color:white;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  font-size:12px;
+}
+
+.theme-card.selected .theme-check{
+  display:flex;
+}
+
+.background-box{
+  margin-top:18px;
+  padding-top:18px;
+  border-top:1px solid #eee9e2;
+}
+
+.backgrounds{
+  display:flex;
+  gap:9px;
+  flex-wrap:wrap;
+}
+
+.bg-option{
+  width:60px;
+  height:60px;
+  border-radius:13px;
+  border:3px solid transparent;
+  cursor:pointer;
+}
+
+.bg-option.selected{
+  border-color:#b2834c;
+}
+
+.bg-1{
+  background:linear-gradient(135deg,#201a15,#5b4127);
+}
+
+.bg-2{
+  background:linear-gradient(135deg,#f4e7d5,#fffaf3);
+}
+
+.bg-3{
+  background:linear-gradient(135deg,#dcebdc,#f8fff7);
+}
+
+.bg-4{
+  background:linear-gradient(135deg,#222,#555);
+}
+
+.bg-5{
+  background:linear-gradient(135deg,#efe1cf,#d3a66c,#6d4b2e);
+}
+
+.logo-preview{
+  display:flex;
+  gap:15px;
+  align-items:center;
+  padding:15px;
+  background:#faf8f5;
+  border-radius:14px;
+  margin-top:12px;
+}
+
+.logo-preview img{
+  width:65px;
+  height:65px;
+  object-fit:contain;
+  border-radius:12px;
+  background:white;
+}
+
+.no-logo{
+  width:65px;
+  height:65px;
+  border-radius:12px;
+  background:#211d19;
+  color:#d9b06a;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:30px;
+  font-weight:900;
+}
+
+@media(max-width:900px){
+
+  .themes{
+    grid-template-columns:repeat(3,1fr);
+  }
+
 }
 
 @media(max-width:700px){
 
-.grid{
-grid-template-columns:1fr;
-}
+  header{
+    padding:11px 14px;
+  }
 
-.full{
-grid-column:auto;
-}
+  .header-actions{
+    gap:5px;
+  }
 
-.item-row{
-align-items:flex-start;
-}
+  .preview-btn,
+  .logout{
+    padding:9px 10px;
+    font-size:12px;
+  }
+
+  .grid{
+    grid-template-columns:1fr;
+  }
+
+  .full{
+    grid-column:auto;
+  }
+
+  .themes{
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  .item-row{
+    align-items:flex-start;
+  }
+
+  .item-main{
+    align-items:flex-start;
+  }
+
+  .item-actions{
+    flex-direction:column;
+  }
 
 }
 
@@ -2461,15 +2799,34 @@ align-items:flex-start;
 
 <header>
 
-<div class="logo">
-لمسة
+<div class="brand">
+
+<div class="logo-mark">
+ل
 </div>
+
+<div class="logo-text">
+لمسة
+<small>LAMSA</small>
+</div>
+
+</div>
+
+<div class="header-actions">
+
+<button
+class="preview-btn"
+onclick="openMenu()">
+👀 معاينة المنيو
+</button>
 
 <button
 class="logout"
 onclick="logout()">
 تسجيل الخروج
 </button>
+
+</div>
 
 </header>
 
@@ -2482,7 +2839,7 @@ onclick="logout()">
 </h1>
 
 <p>
-من هنا تقدر تدير موقع مطعمك ومنيوك.
+من هنا تقدر تدير مطعمك ومنيوك وتختار شكل المنيو بنفسك.
 </p>
 
 </section>
@@ -2495,34 +2852,41 @@ onclick="logout()">
 🏪 بيانات المطعم
 </h2>
 
+<label>اسم المطعم</label>
+
+<input id="restaurantName">
+
+<label>الوصف</label>
+
+<textarea id="restaurantDescription"></textarea>
+
+<label>رقم الهاتف</label>
+
+<input id="restaurantPhone">
+
+<label>العنوان</label>
+
+<input id="restaurantAddress">
+
 <label>
-اسم المطعم
+🖼️ رابط شعار المطعم
 </label>
 
 <input
-id="restaurantName">
+id="restaurantLogo"
+placeholder="https://...">
 
-<label>
-الوصف
-</label>
+<div class="logo-preview">
 
-<textarea
-id="restaurantDescription">
-</textarea>
+<div id="logoPreviewBox">
+<div class="no-logo">ل</div>
+</div>
 
-<label>
-رقم الهاتف
-</label>
+<div class="small">
+يفضل استخدام صورة PNG أو WEBP بخلفية شفافة.
+</div>
 
-<input
-id="restaurantPhone">
-
-<label>
-العنوان
-</label>
-
-<input
-id="restaurantAddress">
+</div>
 
 <button
 class="save"
@@ -2532,7 +2896,7 @@ onclick="saveRestaurant()">
 
 <div
 id="restaurantMessage"
-class="small">
+class="message">
 </div>
 
 </section>
@@ -2555,6 +2919,93 @@ target="_blank">
 جاري التحميل...
 </a>
 
+<a
+id="openMenuButton"
+class="menu-open"
+target="_blank">
+فتح المنيو
+</a>
+
+</section>
+
+
+<section class="card full">
+
+<div class="section-title">
+
+<h2>
+🎨 تصميم المنيو
+</h2>
+
+<span class="small">
+اختار الشكل المناسب لمطعمك
+</span>
+
+</div>
+
+<div class="themes">
+
+${themeCards}
+
+</div>
+
+<div class="background-box">
+
+<h3>
+🖼️ خلفية المنيو
+</h3>
+
+<p class="small">
+اختار خلفية جاهزة الآن، وسنضيف خلفيات أكثر لاحقًا.
+</p>
+
+<div class="backgrounds">
+
+<div
+class="bg-option bg-1"
+data-bg="bg1"
+onclick="selectBackground('bg1')">
+</div>
+
+<div
+class="bg-option bg-2"
+data-bg="bg2"
+onclick="selectBackground('bg2')">
+</div>
+
+<div
+class="bg-option bg-3"
+data-bg="bg3"
+onclick="selectBackground('bg3')">
+</div>
+
+<div
+class="bg-option bg-4"
+data-bg="bg4"
+onclick="selectBackground('bg4')">
+</div>
+
+<div
+class="bg-option bg-5"
+data-bg="bg5"
+onclick="selectBackground('bg5')">
+</div>
+
+</div>
+
+</div>
+
+<button
+class="save"
+onclick="saveDesign()">
+حفظ تصميم المنيو
+</button>
+
+<div
+id="designMessage"
+class="message">
+</div>
+
 </section>
 
 
@@ -2574,9 +3025,7 @@ onclick="addCategory()">
 + إضافة قسم
 </button>
 
-<div
-id="categories">
-</div>
+<div id="categories"></div>
 
 </section>
 
@@ -2587,17 +3036,13 @@ id="categories">
 🍽️ إضافة صنف
 </h2>
 
-<label>
-اسم الصنف
-</label>
+<label>اسم الصنف</label>
 
 <input
 id="itemName"
 placeholder="مثال: برجر لحم">
 
-<label>
-السعر
-</label>
+<label>السعر</label>
 
 <input
 id="itemPrice"
@@ -2605,9 +3050,7 @@ type="number"
 step="0.01"
 placeholder="150">
 
-<label>
-القسم
-</label>
+<label>القسم</label>
 
 <select id="itemCategory">
 
@@ -2617,18 +3060,14 @@ placeholder="150">
 
 </select>
 
-<label>
-الوصف
-</label>
+<label>الوصف</label>
 
 <textarea
 id="itemDescription"
 placeholder="وصف الصنف">
 </textarea>
 
-<label>
-رابط الصورة
-</label>
+<label>رابط الصورة</label>
 
 <input
 id="itemImage"
@@ -2642,7 +3081,7 @@ onclick="addItem()">
 
 <div
 id="itemMessage"
-class="small">
+class="message">
 </div>
 
 </section>
@@ -2670,25 +3109,20 @@ let restaurant = null;
 let categories = [];
 let items = [];
 
+let selectedTheme = "modern";
+let selectedBackground = "";
 
-async function api(
-  url,
-  options = {}
-){
+
+async function api(url, options = {}){
 
   const response =
     await fetch(
       url,
       {
         ...options,
-
-        credentials:
-          "same-origin",
-
+        credentials:"same-origin",
         headers:{
-          "Content-Type":
-            "application/json",
-
+          "Content-Type":"application/json",
           ...(options.headers || {})
         }
       }
@@ -2697,13 +3131,9 @@ async function api(
   const data =
     await response.json();
 
-  if (
-    !response.ok ||
-    !data.ok
-  ) {
+  if(!response.ok || !data.ok){
     throw new Error(
-      data.error ||
-      "حدث خطأ"
+      data.error || "حدث خطأ"
     );
   }
 
@@ -2716,9 +3146,7 @@ async function load(){
   try{
 
     const me =
-      await api(
-        "/api/me"
-      );
+      await api("/api/me");
 
     document.getElementById(
       "welcome"
@@ -2729,9 +3157,7 @@ async function load(){
 
 
     const restaurantData =
-      await api(
-        "/api/restaurant"
-      );
+      await api("/api/restaurant");
 
     restaurant =
       restaurantData.restaurant;
@@ -2761,21 +3187,42 @@ async function load(){
       restaurant.address || "";
 
 
+    document.getElementById(
+      "restaurantLogo"
+    ).value =
+      restaurant.logo || "";
+
+
+    selectedTheme =
+      restaurant.theme || "modern";
+
+
+    selectedBackground =
+      restaurant.background || "";
+
+
+    updateThemeUI();
+    updateBackgroundUI();
+    updateLogoPreview();
+
+
     const link =
       location.origin +
       "/menu/" +
       restaurant.slug;
 
 
-    const menuLink =
-      document.getElementById(
-        "menuLink"
-      );
+    document.getElementById(
+      "menuLink"
+    ).href = link;
 
-    menuLink.href = link;
+    document.getElementById(
+      "menuLink"
+    ).textContent = link;
 
-    menuLink.textContent =
-      link;
+    document.getElementById(
+      "openMenuButton"
+    ).href = link;
 
 
     await loadCategories();
@@ -2783,8 +3230,94 @@ async function load(){
 
   }catch(error){
 
-    location.href =
-      "/login";
+    location.href="/login";
+
+  }
+
+}
+
+
+function openMenu(){
+
+  if(!restaurant){
+    return;
+  }
+
+  window.open(
+    "/menu/" + restaurant.slug,
+    "_blank"
+  );
+
+}
+
+
+function selectTheme(theme){
+
+  selectedTheme = theme;
+
+  updateThemeUI();
+
+}
+
+
+function updateThemeUI(){
+
+  document
+    .querySelectorAll(".theme-card")
+    .forEach(card => {
+
+      card.classList.toggle(
+        "selected",
+        card.dataset.theme === selectedTheme
+      );
+
+    });
+
+}
+
+
+function selectBackground(bg){
+
+  selectedBackground = bg;
+
+  updateBackgroundUI();
+
+}
+
+
+function updateBackgroundUI(){
+
+  document
+    .querySelectorAll(".bg-option")
+    .forEach(option => {
+
+      option.classList.toggle(
+        "selected",
+        option.dataset.bg === selectedBackground
+      );
+
+    });
+
+}
+
+
+async function saveDesign(){
+
+  try{
+
+    await saveRestaurantData();
+
+    document.getElementById(
+      "designMessage"
+    ).textContent =
+      "تم حفظ تصميم المنيو ✓";
+
+  }catch(error){
+
+    document.getElementById(
+      "designMessage"
+    ).textContent =
+      error.message;
 
   }
 
@@ -2795,42 +3328,14 @@ async function saveRestaurant(){
 
   try{
 
-    await api(
-      "/api/restaurant",
-      {
-        method:"PUT",
-
-        body:
-          JSON.stringify({
-
-            name:
-              document.getElementById(
-                "restaurantName"
-              ).value,
-
-            description:
-              document.getElementById(
-                "restaurantDescription"
-              ).value,
-
-            phone:
-              document.getElementById(
-                "restaurantPhone"
-              ).value,
-
-            address:
-              document.getElementById(
-                "restaurantAddress"
-              ).value
-
-          })
-      }
-    );
+    await saveRestaurantData();
 
     document.getElementById(
       "restaurantMessage"
     ).textContent =
-      "تم حفظ البيانات ✓";
+      "تم حفظ بيانات المطعم ✓";
+
+    updateLogoPreview();
 
   }catch(error){
 
@@ -2844,12 +3349,85 @@ async function saveRestaurant(){
 }
 
 
+async function saveRestaurantData(){
+
+  await api(
+    "/api/restaurant",
+    {
+      method:"PUT",
+      body:JSON.stringify({
+
+        name:
+          document.getElementById(
+            "restaurantName"
+          ).value,
+
+        description:
+          document.getElementById(
+            "restaurantDescription"
+          ).value,
+
+        phone:
+          document.getElementById(
+            "restaurantPhone"
+          ).value,
+
+        address:
+          document.getElementById(
+            "restaurantAddress"
+          ).value,
+
+        logo:
+          document.getElementById(
+            "restaurantLogo"
+          ).value,
+
+        theme:
+          selectedTheme,
+
+        background:
+          selectedBackground
+
+      })
+    }
+  );
+
+}
+
+
+function updateLogoPreview(){
+
+  const url =
+    document.getElementById(
+      "restaurantLogo"
+    ).value.trim();
+
+  const box =
+    document.getElementById(
+      "logoPreviewBox"
+    );
+
+  if(!url){
+
+    box.innerHTML =
+      '<div class="no-logo">ل</div>';
+
+    return;
+  }
+
+  box.innerHTML =
+    '<img ' +
+    'src="' + escapeHtml(url) + '" ' +
+    'alt="شعار المطعم" ' +
+    'onerror="this.style.display=\\'none\\'">';
+
+}
+
+
 async function loadCategories(){
 
   const data =
-    await api(
-      "/api/categories"
-    );
+    await api("/api/categories");
 
   categories =
     data.categories;
@@ -2862,14 +3440,10 @@ async function loadCategories(){
 function renderCategories(){
 
   const box =
-    document.getElementById(
-      "categories"
-    );
+    document.getElementById("categories");
 
   const select =
-    document.getElementById(
-      "itemCategory"
-    );
+    document.getElementById("itemCategory");
 
   box.innerHTML = "";
 
@@ -2877,58 +3451,45 @@ function renderCategories(){
     '<option value="">بدون قسم</option>';
 
 
-  categories.forEach(
-    category => {
+  categories.forEach(category => {
 
-      const row =
-        document.createElement(
-          "div"
-        );
+    const row =
+      document.createElement("div");
 
-      row.className =
-        "category-row";
+    row.className =
+      "category-row";
 
+    row.innerHTML =
+      '<strong>' +
+      escapeHtml(category.name) +
+      '</strong>' +
 
-      row.innerHTML =
-        '<strong>' +
-        escapeHtml(
-          category.name
-        ) +
-        '</strong>' +
+      '<button ' +
+      'class="danger" ' +
+      'onclick="removeCategory(\\'' +
+      category.id +
+      '\\')">' +
+      'حذف' +
+      '</button>';
 
-        '<button ' +
-        'class="danger" ' +
-        'style="float:left" ' +
-        'onclick="removeCategory(\'' +
-        category.id +
-        '\')">' +
-        'حذف' +
-        '</button>';
+    box.appendChild(row);
 
 
-      box.appendChild(row);
+    const option =
+      document.createElement("option");
+
+    option.value =
+      category.id;
+
+    option.textContent =
+      category.name;
+
+    select.appendChild(option);
+
+  });
 
 
-      const option =
-        document.createElement(
-          "option"
-        );
-
-      option.value =
-        category.id;
-
-      option.textContent =
-        category.name;
-
-      select.appendChild(
-        option
-      );
-
-    }
-  );
-
-
-  if (!categories.length) {
+  if(!categories.length){
 
     box.innerHTML =
       '<div class="small">' +
@@ -2947,7 +3508,7 @@ async function addCategory(){
       "categoryName"
     ).value.trim();
 
-  if (!name) {
+  if(!name){
     return;
   }
 
@@ -2957,11 +3518,7 @@ async function addCategory(){
       "/api/categories",
       {
         method:"POST",
-
-        body:
-          JSON.stringify({
-            name
-          })
+        body:JSON.stringify({name})
       }
     );
 
@@ -2973,9 +3530,7 @@ async function addCategory(){
 
   }catch(error){
 
-    alert(
-      error.message
-    );
+    alert(error.message);
 
   }
 
@@ -2984,19 +3539,14 @@ async function addCategory(){
 
 async function removeCategory(id){
 
-  if (
-    !confirm(
-      "هل تريد حذف هذا القسم؟"
-    )
-  ) {
+  if(!confirm("هل تريد حذف هذا القسم؟")){
     return;
   }
 
   try{
 
     await api(
-      "/api/categories/" +
-      id,
+      "/api/categories/" + id,
       {
         method:"DELETE"
       }
@@ -3007,9 +3557,7 @@ async function removeCategory(id){
 
   }catch(error){
 
-    alert(
-      error.message
-    );
+    alert(error.message);
 
   }
 
@@ -3019,9 +3567,7 @@ async function removeCategory(id){
 async function loadItems(){
 
   const data =
-    await api(
-      "/api/items"
-    );
+    await api("/api/items");
 
   items =
     data.items;
@@ -3034,14 +3580,12 @@ async function loadItems(){
 function renderItems(){
 
   const box =
-    document.getElementById(
-      "items"
-    );
+    document.getElementById("items");
 
   box.innerHTML = "";
 
 
-  if (!items.length) {
+  if(!items.length){
 
     box.innerHTML =
       '<div class="small">' +
@@ -3052,75 +3596,88 @@ function renderItems(){
   }
 
 
-  items.forEach(
-    item => {
+  items.forEach(item => {
 
-      const row =
-        document.createElement(
-          "div"
-        );
+    const row =
+      document.createElement("div");
 
-      row.className =
-        "item-row";
+    row.className =
+      "item-row";
 
 
-      const categoryText =
-        item.category_name
-          ? " — " +
-            escapeHtml(
-              item.category_name
-            )
-          : "";
+    let image =
+      '<div class="no-logo">ل</div>';
+
+    if(item.image){
+
+      image =
+        '<img ' +
+        'class="item-image" ' +
+        'src="' +
+        escapeHtml(item.image) +
+        '" ' +
+        'alt="' +
+        escapeHtml(item.name) +
+        '">';
+    }
 
 
-      row.innerHTML =
-        '<div>' +
+    const categoryText =
+      item.category_name
+        ? " — " +
+          escapeHtml(item.category_name)
+        : "";
 
-          '<strong>' +
-            escapeHtml(
-              item.name
-            ) +
-          '</strong>' +
+
+    row.innerHTML =
+      '<div class="item-main">' +
+
+        image +
+
+        '<div class="item-info">' +
+
+          '<div class="item-name">' +
+            escapeHtml(item.name) +
+          '</div>' +
 
           '<div class="small">' +
-            item.price +
+            Number(item.price).toFixed(2) +
             ' جنيه' +
             categoryText +
           '</div>' +
 
           '<div class="small">' +
-            escapeHtml(
-              item.description || ""
-            ) +
+            escapeHtml(item.description || "") +
           '</div>' +
 
         '</div>' +
 
-        '<div>' +
+      '</div>' +
 
-          '<button ' +
-          'class="danger" ' +
-          'onclick="editItem(\'' +
-          item.id +
-          '\')">' +
-          'تعديل' +
-          '</button>' +
+      '<div class="item-actions">' +
 
-          '<button ' +
-          'class="danger" ' +
-          'onclick="removeItem(\'' +
-          item.id +
-          '\')">' +
-          'حذف' +
-          '</button>' +
+        '<button ' +
+        'class="danger" ' +
+        'onclick="editItem(\\'' +
+        item.id +
+        '\\')">' +
+        'تعديل' +
+        '</button>' +
 
-        '</div>';
+        '<button ' +
+        'class="danger" ' +
+        'onclick="removeItem(\\'' +
+        item.id +
+        '\\')">' +
+        'حذف' +
+        '</button>' +
+
+      '</div>';
 
 
-      box.appendChild(row);
+    box.appendChild(row);
 
-    }
-  );
+  });
 
 }
 
@@ -3159,17 +3716,13 @@ async function addItem(){
       "/api/items",
       {
         method:"POST",
-
-        body:
-          JSON.stringify({
-
-            name,
-            price,
-            category_id,
-            description,
-            image
-
-          })
+        body:JSON.stringify({
+          name,
+          price,
+          category_id,
+          description,
+          image
+        })
       }
     );
 
@@ -3189,7 +3742,6 @@ async function addItem(){
     document.getElementById(
       "itemImage"
     ).value = "";
-
 
     document.getElementById(
       "itemMessage"
@@ -3214,11 +3766,9 @@ async function addItem(){
 async function editItem(id){
 
   const item =
-    items.find(
-      x => x.id === id
-    );
+    items.find(x => x.id === id);
 
-  if (!item) {
+  if(!item){
     return;
   }
 
@@ -3229,7 +3779,7 @@ async function editItem(id){
       item.name
     );
 
-  if (name === null) {
+  if(name === null){
     return;
   }
 
@@ -3240,7 +3790,7 @@ async function editItem(id){
       item.price
     );
 
-  if (price === null) {
+  if(price === null){
     return;
   }
 
@@ -3251,33 +3801,57 @@ async function editItem(id){
       item.description || ""
     );
 
-  if (description === null) {
+  if(description === null){
     return;
+  }
+
+
+  const category =
+    prompt(
+      "اكتب اسم القسم أو اتركه كما هو:",
+      item.category_name || ""
+    );
+
+
+  let categoryId =
+    item.category_id || "";
+
+
+  if(category !== null && category.trim()){
+
+    const found =
+      categories.find(
+        x =>
+          x.name.trim() ===
+          category.trim()
+      );
+
+    if(found){
+      categoryId = found.id;
+    }
+
   }
 
 
   try{
 
     await api(
-      "/api/items/" +
-      id,
+      "/api/items/" + id,
       {
         method:"PUT",
+        body:JSON.stringify({
 
-        body:
-          JSON.stringify({
+          name,
+          price,
+          description,
 
-            name,
-            price,
-            description,
+          category_id:
+            categoryId,
 
-            category_id:
-              item.category_id || "",
+          image:
+            item.image || ""
 
-            image:
-              item.image || ""
-
-          })
+        })
       }
     );
 
@@ -3285,9 +3859,7 @@ async function editItem(id){
 
   }catch(error){
 
-    alert(
-      error.message
-    );
+    alert(error.message);
 
   }
 
@@ -3296,19 +3868,14 @@ async function editItem(id){
 
 async function removeItem(id){
 
-  if (
-    !confirm(
-      "هل تريد حذف هذا الصنف؟"
-    )
-  ) {
+  if(!confirm("هل تريد حذف هذا الصنف؟")){
     return;
   }
 
   try{
 
     await api(
-      "/api/items/" +
-      id,
+      "/api/items/" + id,
       {
         method:"DELETE"
       }
@@ -3318,9 +3885,7 @@ async function removeItem(id){
 
   }catch(error){
 
-    alert(
-      error.message
-    );
+    alert(error.message);
 
   }
 
@@ -3333,41 +3898,23 @@ async function logout(){
     "/api/logout",
     {
       method:"POST",
-      credentials:
-        "same-origin"
+      credentials:"same-origin"
     }
   );
 
-  location.href = "/";
+  location.href="/";
 
 }
 
 
 function escapeHtml(value){
 
-  return String(
-    value || ""
-  )
-  .replaceAll(
-    "&",
-    "&amp;"
-  )
-  .replaceAll(
-    "<",
-    "&lt;"
-  )
-  .replaceAll(
-    ">",
-    "&gt;"
-  )
-  .replaceAll(
-    '"',
-    "&quot;"
-  )
-  .replaceAll(
-    "'",
-    "&#039;"
-  );
+  return String(value || "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
 
 }
 
@@ -3384,7 +3931,7 @@ load();
 
 
 // =========================
-// PUBLIC MENU PAGE
+// PUBLIC MENU
 // =========================
 
 function publicMenuPage(
@@ -3393,22 +3940,54 @@ function publicMenuPage(
   items
 ) {
 
+  const theme =
+    THEMES[restaurant.theme]
+      || THEMES.modern;
+
+  let background =
+    theme.background;
+
+  const customBackground =
+    restaurant.background || "";
+
+  const customBackgrounds = {
+
+    bg1:
+      "linear-gradient(135deg,#201a15,#5b4127)",
+
+    bg2:
+      "linear-gradient(135deg,#f4e7d5,#fffaf3)",
+
+    bg3:
+      "linear-gradient(135deg,#dcebdc,#f8fff7)",
+
+    bg4:
+      "linear-gradient(135deg,#222,#555)",
+
+    bg5:
+      "linear-gradient(135deg,#efe1cf,#d3a66c,#6d4b2e)"
+
+  };
+
+
+  if(customBackgrounds[customBackground]){
+    background =
+      customBackgrounds[customBackground];
+  }
+
+
   let sections = "";
 
 
-  for (
-    const category of categories
-  ) {
+  for(const category of categories){
 
     const categoryItems =
       items.filter(
         item =>
-          item.category_id ===
-          category.id
+          item.category_id === category.id
       );
 
-
-    if (!categoryItems.length) {
+    if(!categoryItems.length){
       continue;
     }
 
@@ -3416,24 +3995,19 @@ function publicMenuPage(
     let itemHtml = "";
 
 
-    for (
-      const item of categoryItems
-    ) {
+    for(const item of categoryItems){
 
       let imageHtml = "";
 
-
-      if (item.image) {
+      if(item.image){
 
         imageHtml =
-          '<img src="' +
-          escapeHtml(
-            item.image
-          ) +
-          '" alt="' +
-          escapeHtml(
-            item.name
-          ) +
+          '<img class="item-image" ' +
+          'src="' +
+          escapeHtml(item.image) +
+          '" ' +
+          'alt="' +
+          escapeHtml(item.name) +
           '">';
 
       }
@@ -3441,14 +4015,11 @@ function publicMenuPage(
 
       let descriptionHtml = "";
 
-
-      if (item.description) {
+      if(item.description){
 
         descriptionHtml =
           '<p>' +
-          escapeHtml(
-            item.description
-          ) +
+          escapeHtml(item.description) +
           '</p>';
 
       }
@@ -3464,15 +4035,11 @@ function publicMenuPage(
             '<div class="item-top">' +
 
               '<h3>' +
-                escapeHtml(
-                  item.name
-                ) +
+                escapeHtml(item.name) +
               '</h3>' +
 
               '<strong>' +
-                Number(
-                  item.price
-                ).toFixed(2) +
+                Number(item.price).toFixed(2) +
                 ' ج' +
               '</strong>' +
 
@@ -3490,11 +4057,17 @@ function publicMenuPage(
     sections +=
       '<section class="category">' +
 
-        '<h2>' +
-          escapeHtml(
-            category.name
-          ) +
-        '</h2>' +
+        '<div class="category-title">' +
+
+          '<span></span>' +
+
+          '<h2>' +
+            escapeHtml(category.name) +
+          '</h2>' +
+
+          '<span></span>' +
+
+        '</div>' +
 
         '<div class="items">' +
           itemHtml +
@@ -3512,29 +4085,24 @@ function publicMenuPage(
     );
 
 
-  if (uncategorized.length) {
+  if(uncategorized.length){
 
     let otherItems = "";
 
 
-    for (
-      const item of uncategorized
-    ) {
+    for(const item of uncategorized){
 
       let imageHtml = "";
 
-
-      if (item.image) {
+      if(item.image){
 
         imageHtml =
-          '<img src="' +
-          escapeHtml(
-            item.image
-          ) +
-          '" alt="' +
-          escapeHtml(
-            item.name
-          ) +
+          '<img class="item-image" ' +
+          'src="' +
+          escapeHtml(item.image) +
+          '" ' +
+          'alt="' +
+          escapeHtml(item.name) +
           '">';
 
       }
@@ -3542,14 +4110,11 @@ function publicMenuPage(
 
       let descriptionHtml = "";
 
-
-      if (item.description) {
+      if(item.description){
 
         descriptionHtml =
           '<p>' +
-          escapeHtml(
-            item.description
-          ) +
+          escapeHtml(item.description) +
           '</p>';
 
       }
@@ -3565,15 +4130,11 @@ function publicMenuPage(
             '<div class="item-top">' +
 
               '<h3>' +
-                escapeHtml(
-                  item.name
-                ) +
+                escapeHtml(item.name) +
               '</h3>' +
 
               '<strong>' +
-                Number(
-                  item.price
-                ).toFixed(2) +
+                Number(item.price).toFixed(2) +
                 ' ج' +
               '</strong>' +
 
@@ -3591,7 +4152,15 @@ function publicMenuPage(
     sections +=
       '<section class="category">' +
 
-        '<h2>أصناف أخرى</h2>' +
+        '<div class="category-title">' +
+
+          '<span></span>' +
+
+          '<h2>أصناف أخرى</h2>' +
+
+          '<span></span>' +
+
+        '</div>' +
 
         '<div class="items">' +
           otherItems +
@@ -3604,201 +4173,375 @@ function publicMenuPage(
 
   let restaurantDescription = "";
 
-
-  if (restaurant.description) {
+  if(restaurant.description){
 
     restaurantDescription =
-      '<p>' +
-      escapeHtml(
-        restaurant.description
-      ) +
+      '<p class="restaurant-description">' +
+      escapeHtml(restaurant.description) +
       '</p>';
 
   }
 
 
-  return (
+  let logoHtml =
+    '<div class="logo-fallback">ل</div>';
 
-    '<!DOCTYPE html>' +
 
-    '<html lang="ar" dir="rtl">' +
+  if(restaurant.logo){
 
-    '<head>' +
+    logoHtml =
+      '<img class="restaurant-logo" ' +
+      'src="' +
+      escapeHtml(restaurant.logo) +
+      '" ' +
+      'alt="' +
+      escapeHtml(restaurant.name) +
+      '">';
+  }
 
-    '<meta charset="UTF-8">' +
 
-    '<meta name="viewport" ' +
-    'content="width=device-width,initial-scale=1">' +
+  return `
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
 
-    '<title>' +
-      escapeHtml(
-        restaurant.name
-      ) +
-      ' | لمسة' +
-    '</title>' +
+<head>
 
-    '<style>' +
+<meta charset="UTF-8">
 
-    '*{box-sizing:border-box}' +
+<meta
+name="viewport"
+content="width=device-width,initial-scale=1">
 
-    'body{' +
-      'margin:0;' +
-      'font-family:Arial,sans-serif;' +
-      'background:#f7f5f1;' +
-      'color:#222;' +
-    '}' +
+<title>
+${escapeHtml(restaurant.name)} | لمسة
+</title>
 
-    '.hero{' +
-      'background:#222;' +
-      'color:white;' +
-      'text-align:center;' +
-      'padding:55px 20px;' +
-    '}' +
+<style>
 
-    '.logo{' +
-      'font-size:34px;' +
-      'font-weight:900;' +
-      'margin-bottom:15px;' +
-    '}' +
+*{
+  box-sizing:border-box;
+}
 
-    '.hero h1{' +
-      'margin:0;' +
-      'font-size:38px;' +
-    '}' +
+html{
+  scroll-behavior:smooth;
+}
 
-    '.hero p{' +
-      'color:#ddd;' +
-      'max-width:650px;' +
-      'margin:15px auto 0;' +
-      'line-height:1.8;' +
-    '}' +
+body{
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:${background};
+  color:${theme.text};
+  min-height:100vh;
+}
 
-    '.menu{' +
-      'max-width:900px;' +
-      'margin:auto;' +
-      'padding:25px 16px 60px;' +
-    '}' +
+.page{
+  min-height:100vh;
+  background:
+    radial-gradient(
+      circle at 20% 10%,
+      rgba(255,255,255,.12),
+      transparent 30%
+    );
+}
 
-    '.category{' +
-      'margin-bottom:35px;' +
-    '}' +
+.hero{
+  padding:45px 18px 35px;
+  text-align:center;
+}
 
-    '.category h2{' +
-      'font-size:25px;' +
-      'margin-bottom:15px;' +
-    '}' +
+.restaurant-logo,
+.logo-fallback{
+  width:92px;
+  height:92px;
+  border-radius:28px;
+  margin:0 auto 18px;
+  object-fit:contain;
+  background:rgba(255,255,255,.14);
+  box-shadow:0 15px 45px rgba(0,0,0,.14);
+}
 
-    '.items{' +
-      'display:grid;' +
-      'gap:12px;' +
-    '}' +
+.logo-fallback{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:45px;
+  font-weight:900;
+  color:${theme.accent};
+}
 
-    '.item{' +
-      'background:white;' +
-      'border:1px solid #e9e5de;' +
-      'border-radius:16px;' +
-      'padding:15px;' +
-      'display:flex;' +
-      'gap:15px;' +
-    '}' +
+.hero h1{
+  margin:0;
+  font-size:clamp(30px,7vw,52px);
+  letter-spacing:-1px;
+}
 
-    '.item img{' +
-      'width:90px;' +
-      'height:90px;' +
-      'object-fit:cover;' +
-      'border-radius:12px;' +
-    '}' +
+.restaurant-description{
+  max-width:650px;
+  margin:14px auto 0;
+  line-height:1.9;
+  opacity:.78;
+}
 
-    '.item-info{' +
-      'flex:1;' +
-    '}' +
+.powered{
+  display:inline-block;
+  margin-top:18px;
+  padding:7px 13px;
+  border-radius:30px;
+  background:rgba(255,255,255,.1);
+  font-size:11px;
+  opacity:.65;
+}
 
-    '.item-top{' +
-      'display:flex;' +
-      'align-items:flex-start;' +
-      'justify-content:space-between;' +
-      'gap:15px;' +
-    '}' +
+.menu{
+  max-width:900px;
+  margin:auto;
+  padding:15px 15px 60px;
+}
 
-    '.item h3{' +
-      'margin:0;' +
-      'font-size:18px;' +
-    '}' +
+.category{
+  margin-bottom:40px;
+}
 
-    '.item strong{' +
-      'white-space:nowrap;' +
-    '}' +
+.category-title{
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  align-items:center;
+  gap:12px;
+  margin-bottom:17px;
+}
 
-    '.item p{' +
-      'color:#777;' +
-      'line-height:1.6;' +
-      'margin:8px 0 0;' +
-    '}' +
+.category-title span{
+  height:1px;
+  background:${theme.accent};
+  opacity:.35;
+}
 
-    '.footer{' +
-      'text-align:center;' +
-      'padding:25px;' +
-      'color:#888;' +
-      'font-size:13px;' +
-    '}' +
+.category-title h2{
+  margin:0;
+  color:${theme.accent};
+  font-size:25px;
+  white-space:nowrap;
+}
 
-    '@media(max-width:600px){' +
+.items{
+  display:grid;
+  gap:12px;
+}
 
-      '.hero{' +
-        'padding:40px 18px;' +
-      '}' +
+.item{
+  background:${theme.card};
+  color:${theme.text};
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:18px;
+  padding:12px;
+  display:flex;
+  gap:14px;
+  align-items:center;
+  box-shadow:0 10px 35px rgba(0,0,0,.08);
+}
 
-      '.hero h1{' +
-        'font-size:30px;' +
-      '}' +
+.item-image{
+  width:92px;
+  height:92px;
+  object-fit:cover;
+  border-radius:14px;
+  flex:none;
+  background:#eee;
+}
 
-      '.item img{' +
-        'width:75px;' +
-        'height:75px;' +
-      '}' +
+.item-info{
+  flex:1;
+  min-width:0;
+}
 
-    '}' +
+.item-top{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+}
 
-    '</style>' +
+.item h3{
+  margin:0;
+  font-size:18px;
+  line-height:1.5;
+}
 
-    '</head>' +
+.item strong{
+  color:${theme.accent};
+  white-space:nowrap;
+  font-size:17px;
+}
 
-    '<body>' +
+.item p{
+  margin:7px 0 0;
+  opacity:.65;
+  line-height:1.7;
+  font-size:14px;
+}
 
-    '<header class="hero">' +
+.footer{
+  text-align:center;
+  padding:25px 15px 35px;
+  opacity:.55;
+  font-size:12px;
+}
 
-      '<div class="logo">' +
-        'لمسة' +
-      '</div>' +
+@media(max-width:600px){
 
-      '<h1>' +
-        escapeHtml(
-          restaurant.name
-        ) +
-      '</h1>' +
+  .hero{
+    padding-top:32px;
+  }
 
-      restaurantDescription +
+  .restaurant-logo,
+  .logo-fallback{
+    width:78px;
+    height:78px;
+    border-radius:22px;
+  }
 
-    '</header>' +
+  .item{
+    align-items:flex-start;
+  }
 
-    '<main class="menu">' +
+  .item-image{
+    width:76px;
+    height:76px;
+  }
 
-      sections +
+  .item-top{
+    flex-direction:column;
+    gap:3px;
+  }
 
-    '</main>' +
+  .item strong{
+    font-size:15px;
+  }
 
-    '<div class="footer">' +
-      'Powered by LAMSA — لمسة' +
-    '</div>' +
+  .category-title h2{
+    font-size:21px;
+  }
 
-    '</body>' +
+}
 
-    '</html>'
+</style>
 
-  );
+</head>
+
+<body>
+
+<div class="page">
+
+<header class="hero">
+
+${logoHtml}
+
+<h1>
+${escapeHtml(restaurant.name)}
+</h1>
+
+${restaurantDescription}
+
+<div class="powered">
+LAMSA • لمسة
+</div>
+
+</header>
+
+<main class="menu">
+
+${sections}
+
+</main>
+
+<footer class="footer">
+Powered by LAMSA — لمسة
+</footer>
+
+</div>
+
+</body>
+
+</html>
+`;
 }
 
 
 // =========================
-// END
+// ERROR MENU
 // =========================
+
+function errorMenuPage(message) {
+  return `
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+name="viewport"
+content="width=device-width,initial-scale=1">
+
+<title>لمسة</title>
+
+<style>
+
+body{
+  margin:0;
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:Arial,sans-serif;
+  background:#f5f1eb;
+  color:#222;
+}
+
+.box{
+  text-align:center;
+  padding:30px;
+}
+
+.logo{
+  width:70px;
+  height:70px;
+  border-radius:22px;
+  background:#211d19;
+  color:#d9b06a;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin:0 auto 20px;
+  font-size:34px;
+  font-weight:900;
+}
+
+h1{
+  margin:0;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="box">
+
+<div class="logo">
+ل
+</div>
+
+<h1>
+${escapeHtml(message)}
+</h1>
+
+</div>
+
+</body>
+
+</html>
+`;
+}
