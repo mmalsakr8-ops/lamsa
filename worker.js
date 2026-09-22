@@ -176,8 +176,8 @@ async function initDB(env) {
         password_hash TEXT NOT NULL,
         role TEXT NOT NULL DEFAULT 'customer',
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-      `
-    ),
+      )
+    `),
 
     env.DB.prepare(`
       CREATE TABLE IF NOT EXISTS sessions (
@@ -186,8 +186,8 @@ async function initDB(env) {
         expires_at TEXT NOT NULL,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      `
-    ),
+      )
+    `),
 
     env.DB.prepare(`
       CREATE TABLE IF NOT EXISTS restaurants (
@@ -201,8 +201,8 @@ async function initDB(env) {
         slug TEXT NOT NULL UNIQUE,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      `
-    ),
+      )
+    `),
 
     env.DB.prepare(`
       CREATE TABLE IF NOT EXISTS categories (
@@ -212,8 +212,8 @@ async function initDB(env) {
         sort_order INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE
-      `
-    ),
+      )
+    `),
 
     env.DB.prepare(`
       CREATE TABLE IF NOT EXISTS items (
@@ -228,12 +228,21 @@ async function initDB(env) {
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE,
         FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
-      `
-    )
+      )
+    `)
   ]);
 
-  await ensureRestaurantColumn(env, "theme", "TEXT NOT NULL DEFAULT 'modern'");
-  await ensureRestaurantColumn(env, "background", "TEXT NOT NULL DEFAULT ''");
+  await ensureRestaurantColumn(
+    env,
+    "theme",
+    "TEXT NOT NULL DEFAULT 'modern'"
+  );
+
+  await ensureRestaurantColumn(
+    env,
+    "background",
+    "TEXT NOT NULL DEFAULT ''"
+  );
 }
 
 
@@ -309,7 +318,10 @@ async function register(request, env) {
   }
 
   const count = await env.DB
-    .prepare(`SELECT COUNT(*) AS total FROM users`)
+    .prepare(`
+      SELECT COUNT(*) AS total
+      FROM users
+    `)
     .first();
 
   const role =
@@ -318,7 +330,9 @@ async function register(request, env) {
       : "customer";
 
   const id = crypto.randomUUID();
-  const passwordHash = await hashPassword(password);
+
+  const passwordHash =
+    await hashPassword(password);
 
   await env.DB.prepare(`
     INSERT INTO users
@@ -333,7 +347,8 @@ async function register(request, env) {
     role
   ).run();
 
-  const slug = await uniqueSlug(env, name);
+  const slug =
+    await uniqueSlug(env, name);
 
   await env.DB.prepare(`
     INSERT INTO restaurants
@@ -348,7 +363,8 @@ async function register(request, env) {
     ""
   ).run();
 
-  const session = await createSession(env, id);
+  const session =
+    await createSession(env, id);
 
   return new Response(
     JSON.stringify({
@@ -366,8 +382,10 @@ async function register(request, env) {
       status: 201,
       headers: {
         ...corsHeaders(),
-        "content-type": "application/json; charset=UTF-8",
-        "set-cookie": sessionCookie(session)
+        "content-type":
+          "application/json; charset=UTF-8",
+        "set-cookie":
+          sessionCookie(session)
       }
     }
   );
@@ -386,19 +404,21 @@ async function login(request, env) {
   if (!identifier || !password) {
     return json({
       ok: false,
-      error: "أدخل البريد أو رقم الهاتف وكلمة المرور"
+      error:
+        "أدخل البريد أو رقم الهاتف وكلمة المرور"
     }, 400);
   }
 
-  const user = await env.DB.prepare(`
-    SELECT *
-    FROM users
-    WHERE LOWER(email) = ? OR phone = ?
-    LIMIT 1
-  `).bind(
-    identifier,
-    identifier
-  ).first();
+  const user =
+    await env.DB.prepare(`
+      SELECT *
+      FROM users
+      WHERE LOWER(email) = ? OR phone = ?
+      LIMIT 1
+    `).bind(
+      identifier,
+      identifier
+    ).first();
 
   if (!user) {
     return json({
@@ -421,7 +441,10 @@ async function login(request, env) {
   }
 
   const session =
-    await createSession(env, user.id);
+    await createSession(
+      env,
+      user.id
+    );
 
   return new Response(
     JSON.stringify({
@@ -431,8 +454,10 @@ async function login(request, env) {
     {
       headers: {
         ...corsHeaders(),
-        "content-type": "application/json; charset=UTF-8",
-        "set-cookie": sessionCookie(session)
+        "content-type":
+          "application/json; charset=UTF-8",
+        "set-cookie":
+          sessionCookie(session)
       }
     }
   );
@@ -440,7 +465,8 @@ async function login(request, env) {
 
 
 async function createSession(env, userId) {
-  const id = crypto.randomUUID();
+  const id =
+    crypto.randomUUID();
 
   const expires =
     new Date(
@@ -581,7 +607,8 @@ async function logout(request, env) {
     {
       headers: {
         ...corsHeaders(),
-        "content-type": "application/json; charset=UTF-8",
+        "content-type":
+          "application/json; charset=UTF-8",
         "set-cookie":
           `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`
       }
@@ -603,7 +630,10 @@ async function getRestaurant(request, env) {
   }
 
   const restaurant =
-    await getRestaurantByUser(env, user.id);
+    await getRestaurantByUser(
+      env,
+      user.id
+    );
 
   return json({
     ok: true,
@@ -653,11 +683,10 @@ async function updateRestaurant(request, env) {
     }, 400);
   }
 
-  const restaurant =
-    await getRestaurantByUser(
-      env,
-      user.id
-    );
+  await getRestaurantByUser(
+    env,
+    user.id
+  );
 
   await env.DB.prepare(`
     UPDATE restaurants
