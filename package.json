@@ -1,6 +1,7 @@
 {
   "name": "lamsa",
   "private": true,
-  "scripts": {"deploy": "wrangler deploy"},
-  "devDependencies": {"wrangler": "latest"}
+  "version": "1.0.0",
+  "scripts": {"deploy":"wrangler deploy"},
+  "devDependencies": {"wrangler":"^4.0.0"}
 }

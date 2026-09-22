@@ -2,5 +2,12 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "lamsa",
   "main": "worker.js",
-  "compatibility_date": "2026-09-22"
+  "compatibility_date": "2026-09-22",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "lamsa-db",
+      "database_id": "REPLACE_WITH_LAMSA_DB_ID"
+    }
+  ]
 }
