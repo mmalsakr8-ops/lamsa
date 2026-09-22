@@ -1,6 +1,5 @@
 const COOKIE = "lamsa_session";
 const SESSION_DAYS = 30;
-const TRIAL_DAYS = 30;
 
 export default {
   async fetch(request, env) {
@@ -17,7 +16,6 @@ export default {
         });
       }
 
-      // اختبار النظام
       if (path === "/health") {
         return json({
           ok: true,
@@ -26,7 +24,6 @@ export default {
         });
       }
 
-      // API
       if (path === "/api/register" && request.method === "POST")
         return register(request, env);
 
@@ -39,9 +36,43 @@ export default {
       if (path === "/api/me" && request.method === "GET")
         return me(request, env);
 
-      // الصفحات
-      if (path === "/login" || path === "/register" || path === "/auth")
+      if (path === "/api/restaurant" && request.method === "GET")
+        return getRestaurant(request, env);
+
+      if (path === "/api/restaurant" && request.method === "PUT")
+        return updateRestaurant(request, env);
+
+      if (path === "/api/categories" && request.method === "GET")
+        return getCategories(request, env);
+
+      if (path === "/api/categories" && request.method === "POST")
+        return createCategory(request, env);
+
+      if (path.startsWith("/api/categories/") && request.method === "DELETE")
+        return deleteCategory(request, env);
+
+      if (path === "/api/items" && request.method === "GET")
+        return getItems(request, env);
+
+      if (path === "/api/items" && request.method === "POST")
+        return createItem(request, env);
+
+      if (path.startsWith("/api/items/") && request.method === "PUT")
+        return updateItem(request, env);
+
+      if (path.startsWith("/api/items/") && request.method === "DELETE")
+        return deleteItem(request, env);
+
+      if (path.startsWith("/menu/"))
+        return publicMenu(request, env);
+
+      if (
+        path === "/login" ||
+        path === "/register" ||
+        path === "/auth"
+      ) {
         return html(authPage());
+      }
 
       if (path === "/dashboard")
         return html(dashboardPage());
@@ -59,9 +90,9 @@ export default {
 };
 
 
-/* =========================
-   DATABASE
-========================= */
+// =========================
+// DATABASE
+// =========================
 
 async function initDB(env) {
   await env.DB.batch([
@@ -85,14 +116,56 @@ async function initDB(env) {
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
+    `),
+
+    env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS restaurants (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL DEFAULT '',
+        description TEXT NOT NULL DEFAULT '',
+        phone TEXT NOT NULL DEFAULT '',
+        address TEXT NOT NULL DEFAULT '',
+        logo TEXT NOT NULL DEFAULT '',
+        slug TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `),
+
+    env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id TEXT PRIMARY KEY,
+        restaurant_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE
+      )
+    `),
+
+    env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS items (
+        id TEXT PRIMARY KEY,
+        restaurant_id TEXT NOT NULL,
+        category_id TEXT,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        price REAL NOT NULL DEFAULT 0,
+        image TEXT NOT NULL DEFAULT '',
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE,
+        FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+      )
     `)
   ]);
 }
 
 
-/* =========================
-   REGISTER
-========================= */
+// =========================
+// AUTH
+// =========================
 
 async function register(request, env) {
   const body = await request.json();
@@ -148,8 +221,9 @@ async function register(request, env) {
     .prepare(`SELECT COUNT(*) AS total FROM users`)
     .first();
 
-  // أول حساب = مدير النظام
-  const role = Number(count.total) === 0 ? "admin" : "customer";
+  const role = Number(count.total) === 0
+    ? "admin"
+    : "customer";
 
   const id = crypto.randomUUID();
   const passwordHash = await hashPassword(password);
@@ -165,6 +239,19 @@ async function register(request, env) {
     phone,
     passwordHash,
     role
+  ).run();
+
+  const slug = await uniqueSlug(env, name);
+
+  await env.DB.prepare(`
+    INSERT INTO restaurants
+    (id, user_id, name, slug)
+    VALUES (?, ?, ?, ?)
+  `).bind(
+    crypto.randomUUID(),
+    id,
+    name,
+    slug
   ).run();
 
   const session = await createSession(env, id);
@@ -192,10 +279,6 @@ async function register(request, env) {
   );
 }
 
-
-/* =========================
-   LOGIN
-========================= */
 
 async function login(request, env) {
   const body = await request.json();
@@ -241,14 +324,7 @@ async function login(request, env) {
   return new Response(
     JSON.stringify({
       ok: true,
-      message: "تم تسجيل الدخول بنجاح",
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role
-      }
+      message: "تم تسجيل الدخول بنجاح"
     }),
     {
       headers: {
@@ -260,10 +336,6 @@ async function login(request, env) {
   );
 }
 
-
-/* =========================
-   SESSION
-========================= */
 
 async function createSession(env, userId) {
   const id = crypto.randomUUID();
@@ -288,9 +360,11 @@ async function createSession(env, userId) {
   };
 }
 
+
 function sessionCookie(session) {
   return `${COOKIE}=${session.id}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${SESSION_DAYS * 86400}`;
 }
+
 
 function getCookie(request, name) {
   const header = request.headers.get("Cookie") || "";
@@ -298,18 +372,19 @@ function getCookie(request, name) {
   for (const part of header.split(";")) {
     const [key, ...rest] = part.trim().split("=");
 
-    if (key === name) {
+    if (key === name)
       return rest.join("=");
-    }
   }
 
   return null;
 }
 
+
 async function currentUser(request, env) {
   const sessionId = getCookie(request, COOKIE);
 
-  if (!sessionId) return null;
+  if (!sessionId)
+    return null;
 
   const session = await env.DB.prepare(`
     SELECT
@@ -321,16 +396,22 @@ async function currentUser(request, env) {
       users.phone,
       users.role
     FROM sessions
-    JOIN users ON users.id = sessions.user_id
+    JOIN users
+      ON users.id = sessions.user_id
     WHERE sessions.id = ?
     LIMIT 1
   `).bind(sessionId).first();
 
-  if (!session) return null;
+  if (!session)
+    return null;
 
-  if (new Date(session.expires_at).getTime() < Date.now()) {
+  if (
+    new Date(session.expires_at).getTime() <
+    Date.now()
+  ) {
     await env.DB.prepare(`
-      DELETE FROM sessions WHERE id = ?
+      DELETE FROM sessions
+      WHERE id = ?
     `).bind(sessionId).run();
 
     return null;
@@ -345,10 +426,6 @@ async function currentUser(request, env) {
   };
 }
 
-
-/* =========================
-   ME
-========================= */
 
 async function me(request, env) {
   const user = await currentUser(request, env);
@@ -368,16 +445,13 @@ async function me(request, env) {
 }
 
 
-/* =========================
-   LOGOUT
-========================= */
-
 async function logout(request, env) {
   const sessionId = getCookie(request, COOKIE);
 
   if (sessionId) {
     await env.DB.prepare(`
-      DELETE FROM sessions WHERE id = ?
+      DELETE FROM sessions
+      WHERE id = ?
     `).bind(sessionId).run();
   }
 
@@ -390,53 +464,694 @@ async function logout(request, env) {
       headers: {
         ...corsHeaders(),
         "content-type": "application/json; charset=UTF-8",
-        "set-cookie": `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`
+        "set-cookie":
+          `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`
       }
     }
   );
 }
 
 
-/* =========================
-   PASSWORD
-========================= */
+// =========================
+// RESTAURANT
+// =========================
 
-async function hashPassword(password) {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
+async function getRestaurant(request, env) {
+  const user = await requireUser(request, env);
 
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(password),
-    "PBKDF2",
-    false,
-    ["deriveBits"]
-  );
+  if (!user)
+    return unauthorized();
 
-  const bits = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      salt,
-      iterations: 100000,
-      hash: "SHA-256"
-    },
-    key,
-    256
-  );
+  const restaurant = await env.DB.prepare(`
+    SELECT *
+    FROM restaurants
+    WHERE user_id = ?
+    LIMIT 1
+  `).bind(user.id).first();
 
-  return `pbkdf2$100000$${bytesToBase64(salt)}$${bytesToBase64(new Uint8Array(bits))}`;
+  return json({
+    ok: true,
+    restaurant
+  });
 }
 
-async function verifyPassword(password, stored) {
-  try {
-    const parts = stored.split("$");
 
-    if (parts.length !== 4) return false;
+async function updateRestaurant(request, env) {
+  const user = await requireUser(request, env);
 
-    const iterations = Number(parts[1]);
-    const salt = base64ToBytes(parts[2]);
-    const expected = base64ToBytes(parts[3]);
+  if (!user)
+    return unauthorized();
 
-    const key = await crypto.subtle.importKey(
+  const body = await request.json();
+
+  const name = clean(body.name);
+  const description = clean(body.description);
+  const phone = clean(body.phone);
+  const address = clean(body.address);
+  const logo = clean(body.logo);
+
+  if (!name) {
+    return json({
+      ok: false,
+      error: "اسم المطعم مطلوب"
+    }, 400);
+  }
+
+  const restaurant = await env.DB.prepare(`
+    SELECT *
+    FROM restaurants
+    WHERE user_id = ?
+    LIMIT 1
+  `).bind(user.id).first();
+
+  if (!restaurant) {
+    return json({
+      ok: false,
+      error: "المطعم غير موجود"
+    }, 404);
+  }
+
+  await env.DB.prepare(`
+    UPDATE restaurants
+    SET
+      name = ?,
+      description = ?,
+      phone = ?,
+      address = ?,
+      logo = ?
+    WHERE user_id = ?
+  `).bind(
+    name,
+    description,
+    phone,
+    address,
+    logo,
+    user.id
+  ).run();
+
+  return json({
+    ok: true,
+    message: "تم حفظ بيانات المطعم"
+  });
+}
+
+
+// =========================
+// CATEGORIES
+// =========================
+
+async function getCategories(request, env) {
+  const user = await requireUser(request, env);
+
+  if (!user)
+    return unauthorized();
+
+  const restaurant = await getRestaurantByUser(env, user.id);
+
+  const result = await env.DB.prepare(`
+    SELECT *
+    FROM categories
+    WHERE restaurant_id = ?
+    ORDER BY sort_order ASC, created_at ASC
+  `).bind(restaurant.id).all();
+
+  return json({
+    ok: true,
+    categories: result.results || []
+  });
+}
+
+
+async function createCategory(request, env) {
+  const user = await requireUser(request, env);
+
+  if (!user)
+    return unauthorized();
+
+  const restaurant = await getRestaurantByUser(env, user.id);
+  const body = await request.json();
+
+  const name = clean(body.name);
+
+  if (!name) {
+    return json({
+      ok: false,
+      error: "اسم القسم مطلوب"
+    }, 400);
+  }
+
+  const count = await env.DB.prepare(`
+    SELECT COUNT(*) AS total
+    FROM categories
+    WHERE restaurant_id = ?
+  `).bind(restaurant.id).first();
+
+  const id = crypto.randomUUID();
+
+  await env.DB.prepare(`
+    INSERT INTO categories
+    (id, restaurant_id, name, sort_order)
+    VALUES (?, ?, ?, ?)
+  `).bind(
+    id,
+    restaurant.id,
+    name,
+    Number(count.total || 0)
+  ).run();
+
+  return json({
+    ok: true,
+    message: "تم إضافة القسم",
+    category: {
+      id,
+      name
+    }
+  }, 201);
+}
+
+
+async function deleteCategory(request, env) {
+  const user = await requireUser(request, env);
+
+  if (!user)
+    return unauthorized();
+
+  const restaurant = await getRestaurantByUser(env, user.id);
+
+  const id = decodeURIComponent(
+    request.url.split("/api/categories/")[1]
+  );
+
+  const category = await env.DB.prepare(`
+    SELECT id
+    FROM categories
+    WHERE id = ?
+    AND restaurant_id = ?
+    LIMIT 1
+  `).bind(
+    id,
+    restaurant.id
+  ).first();
+
+  if (!category) {
+    return json({
+      ok: false,
+      error: "القسم غير موجود"
+    }, 404);
+  }
+
+  await env.DB.prepare(`
+    DELETE FROM categories
+    WHERE id = ?
+    AND restaurant_id = ?
+  `).bind(
+    id,
+    restaurant.id
+  ).run();
+
+  await env.DB.prepare(`
+    UPDATE items
+    SET category_id = NULL
+    WHERE category_id = ?
+    AND restaurant_id = ?
+  `).bind(
+    id,
+    restaurant.id
+  ).run();
+
+  return json({
+    ok: true,
+    message: "تم حذف القسم"
+  });
+}
+
+
+// =========================
+// ITEMS
+// =========================
+
+async function getItems(request, env) {
+  const user = await requireUser(request, env);
+
+  if (!user)
+    return unauthorized();
+
+  const restaurant = await getRestaurantByUser(env, user.id);
+
+  const result = await env.DB.prepare(`
+    SELECT
+      items.*,
+      categories.name AS category_name
+    FROM items
+    LEFT JOIN categories
+      ON categories.id = items.category_id
+    WHERE items.restaurant_id = ?
+    ORDER BY items.sort_order ASC, items.created_at ASC
+  `).bind(restaurant.id).all();
+
+  return json({
+    ok: true,
+    items: result.results || []
+  });
+}
+
+
+async function createItem(request, env) {
+  const user = await requireUser(request, env);
+
+  if (!user)
+    return unauthorized();
+
+  const restaurant = await getRestaurantByUser(env, user.id);
+  const body = await request.json();
+
+  const name = clean(body.name);
+  const description = clean(body.description);
+  const price = Number(body.price || 0);
+  const image = clean(body.image);
+  const categoryId = clean(body.category_id);
+
+  if (!name) {
+    return json({
+      ok: false,
+      error: "اسم الصنف مطلوب"
+    }, 400);
+  }
+
+  if (!Number.isFinite(price) || price < 0) {
+    return json({
+      ok: false,
+      error: "السعر غير صحيح"
+    }, 400);
+  }
+
+  if (categoryId) {
+    const category = await env.DB.prepare(`
+      SELECT id
+      FROM categories
+      WHERE id = ?
+      AND restaurant_id = ?
+      LIMIT 1
+    `).bind(
+      categoryId,
+      restaurant.id
+    ).first();
+
+    if (!category) {
+      return json({
+        ok: false,
+        error: "القسم غير صحيح"
+      }, 400);
+    }
+  }
+
+  const count = await env.DB.prepare(`
+    SELECT COUNT(*) AS total
+    FROM items
+    WHERE restaurant_id = ?
+  `).bind(restaurant.id).first();
+
+  const id = crypto.randomUUID();
+
+  await env.DB.prepare(`
+    INSERT INTO items
+    (
+      id,
+      restaurant_id,
+      category_id,
+      name,
+      description,
+      price,
+      image,
+      sort_order
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    id,
+    restaurant.id,
+    categoryId || null,
+    name,
+    description,
+    price,
+    image,
+    Number(count.total || 0)
+  ).run();
+
+  return json({
+    ok: true,
+    message: "تم إضافة الصنف",
+    item: {
+      id,
+      name,
+      description,
+      price,
+      image,
+      category_id: categoryId || null
+    }
+  }, 201);
+}
+
+
+async function updateItem(request, env) {
+  const user = await requireUser(request, env);
+
+  if (!user)
+    return unauthorized();
+
+  const restaurant = await getRestaurantByUser(env, user.id);
+
+  const id = decodeURIComponent(
+    request.url.split("/api/items/")[1]
+  );
+
+  const body = await request.json();
+
+  const name = clean(body.name);
+  const description = clean(body.description);
+  const price = Number(body.price || 0);
+  const image = clean(body.image);
+  const categoryId = clean(body.category_id);
+
+  if (!name) {
+    return json({
+      ok: false,
+      error: "اسم الصنف مطلوب"
+    }, 400);
+  }
+
+  if (!Number.isFinite(price) || price < 0) {
+    return json({
+      ok: false,
+      error: "السعر غير صحيح"
+    }, 400);
+  }
+
+  const item = await env.DB.prepare(`
+    SELECT id
+    FROM items
+    WHERE id = ?
+    AND restaurant_id = ?
+    LIMIT 1
+  `).bind(
+    id,
+    restaurant.id
+  ).first();
+
+  if (!item) {
+    return json({
+      ok: false,
+      error: "الصنف غير موجود"
+    }, 404);
+  }
+
+  if (categoryId) {
+    const category = await env.DB.prepare(`
+      SELECT id
+      FROM categories
+      WHERE id = ?
+      AND restaurant_id = ?
+      LIMIT 1
+    `).bind(
+      categoryId,
+      restaurant.id
+    ).first();
+
+    if (!category) {
+      return json({
+        ok: false,
+        error: "القسم غير صحيح"
+      }, 400);
+    }
+  }
+
+  await env.DB.prepare(`
+    UPDATE items
+    SET
+      category_id = ?,
+      name = ?,
+      description = ?,
+      price = ?,
+      image = ?
+    WHERE id = ?
+    AND restaurant_id = ?
+  `).bind(
+    categoryId || null,
+    name,
+    description,
+    price,
+    image,
+    id,
+    restaurant.id
+  ).run();
+
+  return json({
+    ok: true,
+    message: "تم تعديل الصنف"
+  });
+}
+
+
+async function deleteItem(request, env) {
+  const user = await requireUser(request, env);
+
+  if (!user)
+    return unauthorized();
+
+  const restaurant = await getRestaurantByUser(env, user.id);
+
+  const id = decodeURIComponent(
+    request.url.split("/api/items/")[1]
+  );
+
+  const result = await env.DB.prepare(`
+    DELETE FROM items
+    WHERE id = ?
+    AND restaurant_id = ?
+  `).bind(
+    id,
+    restaurant.id
+  ).run();
+
+  if (!result.success) {
+    return json({
+      ok: false,
+      error: "تعذر حذف الصنف"
+    }, 400);
+  }
+
+  return json({
+    ok: true,
+    message: "تم حذف الصنف"
+  });
+}
+
+
+// =========================
+// PUBLIC MENU
+// =========================
+
+async function publicMenu(request, env) {
+  const slug = decodeURIComponent(
+    new URL(request.url).pathname.replace("/menu/", "")
+  );
+
+  if (!slug) {
+    return html(`
+      <h1 style="text-align:center;margin-top:80px">
+        المنيو غير موجود
+      </h1>
+    `, 404);
+  }
+
+  const restaurant = await env.DB.prepare(`
+    SELECT *
+    FROM restaurants
+    WHERE slug = ?
+    LIMIT 1
+  `).bind(slug).first();
+
+  if (!restaurant) {
+    return html(`
+      <h1 style="text-align:center;margin-top:80px">
+        المنيو غير موجود
+      </h1>
+    `, 404);
+  }
+
+  const categories = await env.DB.prepare(`
+    SELECT *
+    FROM categories
+    WHERE restaurant_id = ?
+    ORDER BY sort_order ASC
+  `).bind(restaurant.id).all();
+
+  const items = await env.DB.prepare(`
+    SELECT *
+    FROM items
+    WHERE restaurant_id = ?
+    ORDER BY sort_order ASC
+  `).bind(restaurant.id).all();
+
+  return html(publicMenuPage(
+    restaurant,
+    categories.results || [],
+    items.results || []
+  ));
+}
+
+
+// =========================
+// HELPERS
+// =========================
+
+async function requireUser(request, env) {
+  return currentUser(request, env);
+}
+
+
+async function getRestaurantByUser(env, userId) {
+  let restaurant = await env.DB.prepare(`
+    SELECT *
+    FROM restaurants
+    WHERE user_id = ?
+    LIMIT 1
+  `).bind(userId).first();
+
+  if (!restaurant) {
+    const user = await env.DB.prepare(`
+      SELECT name
+      FROM users
+      WHERE id = ?
+      LIMIT 1
+    `).bind(userId).first();
+
+    const slug = await uniqueSlug(
+      env,
+      user?.name || "restaurant"
+    );
+
+    const id = crypto.randomUUID();
+
+    await env.DB.prepare(`
+      INSERT INTO restaurants
+      (id, user_id, name, slug)
+      VALUES (?, ?, ?, ?)
+    `).bind(
+      id,
+      userId,
+      user?.name || "",
+      slug
+    ).run();
+
+    restaurant = await env.DB.prepare(`
+      SELECT *
+      FROM restaurants
+      WHERE id = ?
+      LIMIT 1
+    `).bind(id).first();
+  }
+
+  return restaurant;
+}
+
+
+async function uniqueSlug(env, name) {
+  let base = String(name || "restaurant")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\u0600-\u06ff]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  if (!base)
+    base = "restaurant";
+
+  let slug = base;
+  let number = 1;
+
+  while (true) {
+    const exists = await env.DB.prepare(`
+      SELECT id
+      FROM restaurants
+      WHERE slug = ?
+      LIMIT 1
+    `).bind(slug).first();
+
+    if (!exists)
+      return slug;
+
+    number++;
+    slug = `${base}-${number}`;
+  }
+}
+
+
+function unauthorized() {
+  return json({
+    ok: false,
+    error: "يجب تسجيل الدخول أولاً"
+  }, 401);
+}
+
+
+function clean(value) {
+  return String(value || "").trim();
+}
+
+
+function isEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+
+function json(data, status = 200) {
+  return new Response(
+    JSON.stringify(data),
+    {
+      status,
+      headers: {
+        ...corsHeaders(),
+        "content-type":
+          "application/json; charset=UTF-8"
+      }
+    }
+  );
+}
+
+
+function html(content, status = 200) {
+  return new Response(content, {
+    status,
+    headers: {
+      "content-type":
+        "text/html; charset=UTF-8"
+    }
+  });
+}
+
+
+function corsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods":
+      "GET,POST,PUT,DELETE,OPTIONS",
+    "Access-Control-Allow-Headers":
+      "Content-Type"
+  };
+}
+
+
+// =========================
+// PASSWORD
+// =========================
+
+async function hashPassword(password) {
+  const salt =
+    crypto.getRandomValues(
+      new Uint8Array(16)
+    );
+
+  const key =
+    await crypto.subtle.importKey(
       "raw",
       new TextEncoder().encode(password),
       "PBKDF2",
@@ -444,28 +1159,68 @@ async function verifyPassword(password, stored) {
       ["deriveBits"]
     );
 
-    const bits = await crypto.subtle.deriveBits(
+  const bits =
+    await crypto.subtle.deriveBits(
       {
         name: "PBKDF2",
         salt,
-        iterations,
+        iterations: 100000,
         hash: "SHA-256"
       },
       key,
       256
     );
 
+  return `pbkdf2$100000$${bytesToBase64(salt)}$${bytesToBase64(new Uint8Array(bits))}`;
+}
+
+
+async function verifyPassword(password, stored) {
+  try {
+    const parts = stored.split("$");
+
+    if (parts.length !== 4)
+      return false;
+
+    const iterations = Number(parts[1]);
+    const salt = base64ToBytes(parts[2]);
+    const expected = base64ToBytes(parts[3]);
+
+    const key =
+      await crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(password),
+        "PBKDF2",
+        false,
+        ["deriveBits"]
+      );
+
+    const bits =
+      await crypto.subtle.deriveBits(
+        {
+          name: "PBKDF2",
+          salt,
+          iterations,
+          hash: "SHA-256"
+        },
+        key,
+        256
+      );
+
     return timingSafeEqual(
       expected,
       new Uint8Array(bits)
     );
+
   } catch {
     return false;
   }
 }
 
+
 function timingSafeEqual(a, b) {
-  if (a.length !== b.length) return false;
+  if (a.length !== b.length)
+    return false;
 
   let result = 0;
 
@@ -475,6 +1230,7 @@ function timingSafeEqual(a, b) {
 
   return result === 0;
 }
+
 
 function bytesToBase64(bytes) {
   let binary = "";
@@ -486,9 +1242,11 @@ function bytesToBase64(bytes) {
   return btoa(binary);
 }
 
+
 function base64ToBytes(value) {
   const binary = atob(value);
-  const bytes = new Uint8Array(binary.length);
+  const bytes =
+    new Uint8Array(binary.length);
 
   for (let i = 0; i < binary.length; i++) {
     bytes[i] = binary.charCodeAt(i);
@@ -498,9 +1256,9 @@ function base64ToBytes(value) {
 }
 
 
-/* =========================
-   HOME PAGE
-========================= */
+// =========================
+// HOME
+// =========================
 
 function homePage() {
   return `
@@ -508,99 +1266,118 @@ function homePage() {
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport"
+content="width=device-width,initial-scale=1">
 <title>لمسة | LAMSA</title>
 
 <style>
 *{box-sizing:border-box}
+
 body{
- margin:0;
- font-family:Arial,sans-serif;
- background:#f8f6f2;
- color:#202020;
+margin:0;
+font-family:Arial,sans-serif;
+background:#f8f6f2;
+color:#202020;
 }
+
 header{
- height:76px;
- padding:0 7%;
- background:#fff;
- border-bottom:1px solid #eee;
- display:flex;
- align-items:center;
- justify-content:space-between;
+height:76px;
+padding:0 7%;
+background:#fff;
+border-bottom:1px solid #eee;
+display:flex;
+align-items:center;
+justify-content:space-between;
 }
+
 .logo{
- font-size:28px;
- font-weight:900;
+font-size:28px;
+font-weight:900;
 }
+
 .logo small{
- display:block;
- font-size:10px;
- letter-spacing:4px;
- color:#999;
- direction:ltr;
+display:block;
+font-size:10px;
+letter-spacing:4px;
+color:#999;
+direction:ltr;
 }
+
 button{
- cursor:pointer;
- border:0;
- font-family:inherit;
+cursor:pointer;
+border:0;
+font-family:inherit;
 }
+
 .login{
- background:#202020;
- color:white;
- padding:12px 22px;
- border-radius:10px;
+background:#202020;
+color:white;
+padding:12px 22px;
+border-radius:10px;
 }
+
 .hero{
- min-height:calc(100vh - 76px);
- display:flex;
- align-items:center;
- justify-content:center;
- text-align:center;
- padding:50px 20px;
+min-height:calc(100vh - 76px);
+display:flex;
+align-items:center;
+justify-content:center;
+text-align:center;
+padding:50px 20px;
 }
+
 .hero-box{
- max-width:850px;
+max-width:850px;
 }
+
 .badge{
- display:inline-block;
- background:#eee5da;
- color:#79512e;
- padding:9px 18px;
- border-radius:30px;
- margin-bottom:25px;
+display:inline-block;
+background:#eee5da;
+color:#79512e;
+padding:9px 18px;
+border-radius:30px;
+margin-bottom:25px;
 }
+
 h1{
- font-size:clamp(42px,8vw,78px);
- line-height:1.15;
- margin:0;
+font-size:clamp(42px,8vw,78px);
+line-height:1.15;
+margin:0;
 }
-h1 span{color:#a86c35}
+
+h1 span{
+color:#a86c35;
+}
+
 .hero p{
- color:#666;
- font-size:19px;
- line-height:1.9;
- max-width:680px;
- margin:25px auto;
+color:#666;
+font-size:19px;
+line-height:1.9;
+max-width:680px;
+margin:25px auto;
 }
+
 .actions{
- display:flex;
- justify-content:center;
- gap:12px;
- flex-wrap:wrap;
- margin-top:30px;
+display:flex;
+justify-content:center;
+gap:12px;
+flex-wrap:wrap;
+margin-top:30px;
 }
+
 .primary,.secondary{
- padding:15px 30px;
- border-radius:12px;
- font-size:16px;
+padding:15px 30px;
+border-radius:12px;
+font-size:16px;
 }
+
 .primary{
- background:#202020;
- color:white;
+background:#202020;
+color:white;
 }
+
 .secondary{
- background:white;
- border:1px solid #ddd;
+background:white;
+border:1px solid #ddd;
 }
 </style>
 </head>
@@ -608,45 +1385,56 @@ h1 span{color:#a86c35}
 <body>
 
 <header>
- <div class="logo">
-  لمسة
-  <small>LAMSA</small>
- </div>
 
- <button class="login" onclick="location.href='/login'">
-  تسجيل الدخول
- </button>
+<div class="logo">
+لمسة
+<small>LAMSA</small>
+</div>
+
+<button
+class="login"
+onclick="location.href='/login'">
+تسجيل الدخول
+</button>
+
 </header>
 
 <section class="hero">
- <div class="hero-box">
 
-  <div class="badge">
-   ✨ منصتك الرقمية للمطاعم والكافيهات
-  </div>
+<div class="hero-box">
 
-  <h1>
-   ابنِ موقعك<br>
-   <span>بلمسة واحدة</span>
-  </h1>
+<div class="badge">
+✨ منصتك الرقمية للمطاعم والكافيهات
+</div>
 
-  <p>
-   أنشئ موقع مطعمك أو كافيهك ومنيوك الرقمية
-   بسهولة، واختر التصميم المناسب لك وتحكم
-   في بياناتك وأسعارك ومنيوك بنفسك.
-  </p>
+<h1>
+ابنِ موقعك<br>
+<span>بلمسة واحدة</span>
+</h1>
 
-  <div class="actions">
-   <button class="primary" onclick="location.href='/register'">
-    ابدأ الآن
-   </button>
+<p>
+أنشئ موقع مطعمك أو كافيهك ومنيوك الرقمية
+بسهولة، وتحكم في بياناتك وأسعارك وأصنافك بنفسك.
+</p>
 
-   <button class="secondary" onclick="location.href='/login'">
-    لدي حساب بالفعل
-   </button>
-  </div>
+<div class="actions">
 
- </div>
+<button
+class="primary"
+onclick="location.href='/register'">
+ابدأ الآن
+</button>
+
+<button
+class="secondary"
+onclick="location.href='/login'">
+لدي حساب بالفعل
+</button>
+
+</div>
+
+</div>
+
 </section>
 
 </body>
@@ -655,125 +1443,127 @@ h1 span{color:#a86c35}
 }
 
 
-/* =========================
-   AUTH PAGE
-========================= */
+// =========================
+// AUTH
+// =========================
 
 function authPage() {
   return `
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
 
-<title>تسجيل الدخول | لمسة</title>
+<meta charset="UTF-8">
+<meta name="viewport"
+content="width=device-width,initial-scale=1">
+
+<title>الدخول | لمسة</title>
 
 <style>
+
 *{box-sizing:border-box}
 
 body{
- margin:0;
- min-height:100vh;
- font-family:Arial,sans-serif;
- background:#f7f5f1;
- display:flex;
- align-items:center;
- justify-content:center;
- padding:20px;
- color:#222;
+margin:0;
+min-height:100vh;
+font-family:Arial,sans-serif;
+background:#f7f5f1;
+display:flex;
+align-items:center;
+justify-content:center;
+padding:20px;
+color:#222;
 }
 
 .card{
- width:100%;
- max-width:460px;
- background:white;
- border:1px solid #eee;
- border-radius:22px;
- padding:32px;
- box-shadow:0 15px 50px rgba(0,0,0,.06);
+width:100%;
+max-width:460px;
+background:white;
+border:1px solid #eee;
+border-radius:22px;
+padding:32px;
+box-shadow:0 15px 50px rgba(0,0,0,.06);
 }
 
 .logo{
- text-align:center;
- font-size:32px;
- font-weight:900;
- margin-bottom:8px;
+text-align:center;
+font-size:32px;
+font-weight:900;
+margin-bottom:8px;
 }
 
 .subtitle{
- text-align:center;
- color:#777;
- margin-bottom:28px;
+text-align:center;
+color:#777;
+margin-bottom:28px;
 }
 
 .tabs{
- display:grid;
- grid-template-columns:1fr 1fr;
- background:#f3f1ed;
- padding:5px;
- border-radius:12px;
- margin-bottom:24px;
+display:grid;
+grid-template-columns:1fr 1fr;
+background:#f3f1ed;
+padding:5px;
+border-radius:12px;
+margin-bottom:24px;
 }
 
 .tab{
- padding:12px;
- border-radius:9px;
- background:transparent;
+padding:12px;
+border-radius:9px;
+background:transparent;
 }
 
 .tab.active{
- background:#222;
- color:#fff;
+background:#222;
+color:#fff;
 }
 
 label{
- display:block;
- margin:14px 0 7px;
- font-weight:700;
+display:block;
+margin:14px 0 7px;
+font-weight:700;
 }
 
 input{
- width:100%;
- padding:14px;
- border:1px solid #ddd;
- border-radius:11px;
- font-size:16px;
- outline:none;
-}
-
-input:focus{
- border-color:#999;
+width:100%;
+padding:14px;
+border:1px solid #ddd;
+border-radius:11px;
+font-size:16px;
+outline:none;
 }
 
 .submit{
- width:100%;
- padding:15px;
- margin-top:22px;
- background:#222;
- color:#fff;
- border-radius:11px;
- font-size:16px;
+width:100%;
+padding:15px;
+margin-top:22px;
+background:#222;
+color:#fff;
+border-radius:11px;
+font-size:16px;
 }
 
 .message{
- margin-top:16px;
- padding:12px;
- border-radius:10px;
- background:#f4f4f4;
- display:none;
- line-height:1.6;
+margin-top:16px;
+padding:12px;
+border-radius:10px;
+background:#f4f4f4;
+display:none;
+line-height:1.6;
 }
 
 .back{
- display:block;
- text-align:center;
- margin-top:20px;
- color:#777;
- text-decoration:none;
+display:block;
+text-align:center;
+margin-top:20px;
+color:#777;
+text-decoration:none;
 }
 
-.hidden{display:none}
+.hidden{
+display:none;
+}
+
 </style>
 </head>
 
@@ -781,224 +1571,312 @@ input:focus{
 
 <div class="card">
 
- <div class="logo">لمسة</div>
+<div class="logo">لمسة</div>
 
- <div class="subtitle">
-  LAMSA — منصتك الرقمية
- </div>
+<div class="subtitle">
+LAMSA — منصتك الرقمية للمطاعم والكافيهات
+</div>
 
- <div class="tabs">
-  <button class="tab active" id="loginTab" onclick="showLogin()">
-   تسجيل الدخول
-  </button>
+<div class="tabs">
 
-  <button class="tab" id="registerTab" onclick="showRegister()">
-   إنشاء حساب
-  </button>
- </div>
+<button
+class="tab active"
+id="loginTab"
+onclick="showLogin()">
+تسجيل الدخول
+</button>
+
+<button
+class="tab"
+id="registerTab"
+onclick="showRegister()">
+إنشاء حساب
+</button>
+
+</div>
+
+<form id="loginForm">
+
+<label>
+البريد الإلكتروني أو رقم الهاتف
+</label>
+
+<input
+id="loginIdentifier"
+type="text"
+required>
+
+<label>
+كلمة المرور
+</label>
+
+<input
+id="loginPassword"
+type="password"
+required>
+
+<button
+class="submit"
+type="submit">
+تسجيل الدخول
+</button>
+
+</form>
 
 
- <!-- LOGIN -->
+<form id="registerForm"
+class="hidden">
 
- <form id="loginForm">
+<label>الاسم</label>
 
-  <label>البريد الإلكتروني أو رقم الهاتف</label>
-
-  <input
-   id="loginIdentifier"
-   type="text"
-   placeholder="example@email.com"
-   autocomplete="username"
-   required
-  >
-
-  <label>كلمة المرور</label>
-
-  <input
-   id="loginPassword"
-   type="password"
-   placeholder="كلمة المرور"
-   autocomplete="current-password"
-   required
-  >
-
-  <button class="submit" type="submit">
-   تسجيل الدخول
-  </button>
-
- </form>
+<input
+id="registerName"
+type="text"
+required>
 
 
- <!-- REGISTER -->
+<label>رقم الهاتف</label>
 
- <form id="registerForm" class="hidden">
+<input
+id="registerPhone"
+type="tel"
+required>
 
-  <label>الاسم</label>
 
-  <input
-   id="registerName"
-   type="text"
-   placeholder="اسمك"
-   required
-  >
+<label>البريد الإلكتروني</label>
 
-  <label>رقم الهاتف</label>
+<input
+id="registerEmail"
+type="email"
+required>
 
-  <input
-   id="registerPhone"
-   type="tel"
-   placeholder="01xxxxxxxxx"
-   required
-  >
 
-  <label>البريد الإلكتروني</label>
+<label>كلمة المرور</label>
 
-  <input
-   id="registerEmail"
-   type="email"
-   placeholder="example@email.com"
-   required
-  >
+<input
+id="registerPassword"
+type="password"
+minlength="6"
+required>
 
-  <label>كلمة المرور</label>
 
-  <input
-   id="registerPassword"
-   type="password"
-   placeholder="6 أحرف على الأقل"
-   minlength="6"
-   required
-  >
+<button
+class="submit"
+type="submit">
+إنشاء الحساب
+</button>
 
-  <button class="submit" type="submit">
-   إنشاء الحساب
-  </button>
+</form>
 
- </form>
+<div id="message"
+class="message"></div>
 
- <div id="message" class="message"></div>
-
- <a href="/" class="back">
-  ← العودة إلى الرئيسية
- </a>
+<a href="/" class="back">
+← العودة للرئيسية
+</a>
 
 </div>
 
 
 <script>
 
-const loginForm = document.getElementById("loginForm");
-const registerForm = document.getElementById("registerForm");
-const loginTab = document.getElementById("loginTab");
-const registerTab = document.getElementById("registerTab");
-const message = document.getElementById("message");
+const loginForm =
+document.getElementById("loginForm");
+
+const registerForm =
+document.getElementById("registerForm");
+
+const loginTab =
+document.getElementById("loginTab");
+
+const registerTab =
+document.getElementById("registerTab");
+
+const message =
+document.getElementById("message");
+
 
 function showMessage(text){
- message.textContent = text;
- message.style.display = "block";
+message.textContent=text;
+message.style.display="block";
 }
+
 
 function showLogin(){
- loginForm.classList.remove("hidden");
- registerForm.classList.add("hidden");
 
- loginTab.classList.add("active");
- registerTab.classList.remove("active");
+loginForm.classList.remove("hidden");
+registerForm.classList.add("hidden");
 
- message.style.display = "none";
+loginTab.classList.add("active");
+registerTab.classList.remove("active");
+
+message.style.display="none";
+
 }
+
 
 function showRegister(){
- loginForm.classList.add("hidden");
- registerForm.classList.remove("hidden");
 
- loginTab.classList.remove("active");
- registerTab.classList.add("active");
+loginForm.classList.add("hidden");
+registerForm.classList.remove("hidden");
 
- message.style.display = "none";
+loginTab.classList.remove("active");
+registerTab.classList.add("active");
+
+message.style.display="none";
+
 }
 
-loginForm.addEventListener("submit", async function(e){
- e.preventDefault();
 
- const button = loginForm.querySelector("button[type=submit]");
- button.disabled = true;
- button.textContent = "جارٍ تسجيل الدخول...";
+loginForm.addEventListener(
+"submit",
+async function(e){
 
- try{
+e.preventDefault();
 
-  const response = await fetch("/api/login",{
-   method:"POST",
-   headers:{
-    "Content-Type":"application/json"
-   },
-   credentials:"same-origin",
-   body:JSON.stringify({
-    identifier:document.getElementById("loginIdentifier").value.trim(),
-    password:document.getElementById("loginPassword").value
-   })
-  });
+const button =
+loginForm.querySelector(
+"button[type=submit]"
+);
 
-  const data = await response.json();
+button.disabled=true;
+button.textContent=
+"جارٍ تسجيل الدخول...";
 
-  if(!response.ok || !data.ok){
-   throw new Error(data.error || "تعذر تسجيل الدخول");
-  }
+try{
 
-  location.href="/dashboard";
+const response =
+await fetch("/api/login",{
 
- }catch(error){
+method:"POST",
 
-  showMessage(error.message);
+headers:{
+"Content-Type":
+"application/json"
+},
 
-  button.disabled = false;
-  button.textContent = "تسجيل الدخول";
- }
+credentials:"same-origin",
+
+body:JSON.stringify({
+
+identifier:
+document.getElementById(
+"loginIdentifier"
+).value.trim(),
+
+password:
+document.getElementById(
+"loginPassword"
+).value
+
+})
+
+});
+
+const data =
+await response.json();
+
+if(!response.ok || !data.ok){
+throw new Error(
+data.error ||
+"تعذر تسجيل الدخول"
+);
+}
+
+location.href="/dashboard";
+
+}catch(error){
+
+showMessage(error.message);
+
+button.disabled=false;
+button.textContent=
+"تسجيل الدخول";
+
+}
+
 });
 
 
-registerForm.addEventListener("submit", async function(e){
- e.preventDefault();
+registerForm.addEventListener(
+"submit",
+async function(e){
 
- const button = registerForm.querySelector("button[type=submit]");
- button.disabled = true;
- button.textContent = "جارٍ إنشاء الحساب...";
+e.preventDefault();
 
- try{
+const button =
+registerForm.querySelector(
+"button[type=submit]"
+);
 
-  const response = await fetch("/api/register",{
-   method:"POST",
-   headers:{
-    "Content-Type":"application/json"
-   },
-   credentials:"same-origin",
-   body:JSON.stringify({
+button.disabled=true;
 
-    name:document.getElementById("registerName").value.trim(),
+button.textContent=
+"جارٍ إنشاء الحساب...";
 
-    phone:document.getElementById("registerPhone").value.trim(),
+try{
 
-    email:document.getElementById("registerEmail").value.trim(),
+const response =
+await fetch("/api/register",{
 
-    password:document.getElementById("registerPassword").value
-   })
-  });
+method:"POST",
 
-  const data = await response.json();
+headers:{
+"Content-Type":
+"application/json"
+},
 
-  if(!response.ok || !data.ok){
-   throw new Error(data.error || "تعذر إنشاء الحساب");
-  }
+credentials:"same-origin",
 
-  location.href="/dashboard";
+body:JSON.stringify({
 
- }catch(error){
+name:
+document.getElementById(
+"registerName"
+).value.trim(),
 
-  showMessage(error.message);
+phone:
+document.getElementById(
+"registerPhone"
+).value.trim(),
 
-  button.disabled = false;
-  button.textContent = "إنشاء الحساب";
- }
+email:
+document.getElementById(
+"registerEmail"
+).value.trim(),
+
+password:
+document.getElementById(
+"registerPassword"
+).value
+
+})
+
+});
+
+const data =
+await response.json();
+
+if(!response.ok || !data.ok){
+throw new Error(
+data.error ||
+"تعذر إنشاء الحساب"
+);
+}
+
+location.href="/dashboard";
+
+}catch(error){
+
+showMessage(error.message);
+
+button.disabled=false;
+
+button.textContent=
+"إنشاء الحساب";
+
+}
+
 });
 
 </script>
@@ -1009,196 +1887,952 @@ registerForm.addEventListener("submit", async function(e){
 }
 
 
-/* =========================
-   DASHBOARD
-========================= */
+// =========================
+// DASHBOARD
+// =========================
 
 function dashboardPage() {
   return `
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
+
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<meta name="viewport"
+content="width=device-width,initial-scale=1">
 
 <title>لوحة التحكم | لمسة</title>
 
 <style>
-*{box-sizing:border-box}
+
+*{
+box-sizing:border-box
+}
 
 body{
- margin:0;
- font-family:Arial,sans-serif;
- background:#f7f5f1;
- color:#222;
+margin:0;
+font-family:Arial,sans-serif;
+background:#f6f4f0;
+color:#222;
 }
 
 header{
- background:white;
- height:70px;
- border-bottom:1px solid #eee;
- padding:0 6%;
- display:flex;
- align-items:center;
- justify-content:space-between;
+background:white;
+min-height:70px;
+border-bottom:1px solid #eee;
+padding:12px 6%;
+display:flex;
+align-items:center;
+justify-content:space-between;
+gap:15px;
 }
 
 .logo{
- font-size:25px;
- font-weight:900;
+font-size:26px;
+font-weight:900;
 }
 
 .logout{
- background:#222;
- color:#fff;
- border:0;
- border-radius:10px;
- padding:11px 18px;
+background:#222;
+color:white;
+border:0;
+border-radius:10px;
+padding:11px 18px;
 }
 
 main{
- max-width:1100px;
- margin:auto;
- padding:35px 20px;
+max-width:1150px;
+margin:auto;
+padding:25px 18px 50px;
 }
 
 .welcome{
- background:#222;
- color:white;
- border-radius:20px;
- padding:30px;
- margin-bottom:25px;
+background:#222;
+color:white;
+border-radius:20px;
+padding:28px;
+margin-bottom:20px;
 }
 
 .welcome h1{
- margin:0 0 10px;
+margin:0 0 8px;
 }
 
 .welcome p{
- margin:0;
- color:#ddd;
+margin:0;
+color:#ddd;
 }
 
 .grid{
- display:grid;
- grid-template-columns:repeat(2,1fr);
- gap:15px;
+display:grid;
+grid-template-columns:
+repeat(2,minmax(0,1fr));
+gap:16px;
 }
 
 .card{
- background:white;
- border:1px solid #eee;
- border-radius:18px;
- padding:25px;
+background:white;
+border:1px solid #e8e5df;
+border-radius:18px;
+padding:22px;
 }
 
 .card h2{
- margin-top:0;
+margin-top:0;
 }
 
-.card p{
- color:#777;
- line-height:1.7;
+input,textarea,select{
+width:100%;
+padding:13px;
+border:1px solid #ddd;
+border-radius:10px;
+font:inherit;
+margin-top:7px;
 }
 
-@media(max-width:650px){
- .grid{
-  grid-template-columns:1fr;
- }
+textarea{
+min-height:90px;
+resize:vertical;
 }
+
+label{
+display:block;
+margin-top:13px;
+font-weight:bold;
+}
+
+.save{
+margin-top:15px;
+width:100%;
+padding:13px;
+border:0;
+border-radius:10px;
+background:#222;
+color:white;
+font:inherit;
+}
+
+.menu-link{
+display:block;
+background:#f4f1eb;
+padding:14px;
+border-radius:10px;
+margin-top:12px;
+word-break:break-all;
+}
+
+.category-row,
+.item-row{
+border:1px solid #eee;
+border-radius:12px;
+padding:13px;
+margin-top:10px;
+}
+
+.item-row{
+display:flex;
+justify-content:space-between;
+gap:10px;
+align-items:center;
+}
+
+.small{
+font-size:13px;
+color:#777;
+}
+
+.danger{
+background:#f2eeee;
+color:#8b2525;
+border:0;
+border-radius:8px;
+padding:8px 12px;
+}
+
+.add{
+background:#222;
+color:white;
+border:0;
+border-radius:9px;
+padding:10px 15px;
+margin-top:10px;
+}
+
+.full{
+grid-column:1/-1;
+}
+
+@media(max-width:700px){
+
+.grid{
+grid-template-columns:1fr;
+}
+
+.full{
+grid-column:auto;
+}
+
+.item-row{
+align-items:flex-start;
+}
+
+}
+
 </style>
+
 </head>
 
 <body>
 
 <header>
- <div class="logo">لمسة</div>
 
- <button class="logout" onclick="logout()">
-  تسجيل الخروج
- </button>
+<div class="logo">
+لمسة
+</div>
+
+<button
+class="logout"
+onclick="logout()">
+تسجيل الخروج
+</button>
+
 </header>
+
 
 <main>
 
- <section class="welcome">
-  <h1 id="welcome">أهلاً بك 👋</h1>
-  <p>
-   دي لوحة التحكم الخاصة بك في منصة لمسة.
-  </p>
- </section>
+<section class="welcome">
 
- <section class="grid">
+<h1 id="welcome">
+أهلاً بك 👋
+</h1>
 
-  <div class="card">
-   <h2>🏪 إنشاء موقعك</h2>
-   <p>
-    قريبًا ستتمكن من إنشاء موقع مطعمك أو كافيهك
-    واختيار التصميم المناسب.
-   </p>
-  </div>
+<p>
+من هنا تقدر تدير موقع مطعمك ومنيوك.
+</p>
 
-  <div class="card">
-   <h2>🍽️ إدارة المنيو</h2>
-   <p>
-    إضافة الأقسام والأصناف وتعديل الأسعار
-    والوصف والصور.
-   </p>
-  </div>
+</section>
 
-  <div class="card">
-   <h2>🎨 التصميمات</h2>
-   <p>
-    اختر التصميم المناسب لموقعك ومنيوك.
-   </p>
-  </div>
 
-  <div class="card">
-   <h2>💬 الدعم</h2>
-   <p>
-    تواصل مع فريق لمسة عند الحاجة.
-   </p>
-  </div>
+<div class="grid">
 
- </section>
+
+<section class="card">
+
+<h2>🏪 بيانات المطعم</h2>
+
+<label>اسم المطعم</label>
+
+<input id="restaurantName">
+
+<label>الوصف</label>
+
+<textarea
+id="restaurantDescription"></textarea>
+
+<label>رقم الهاتف</label>
+
+<input id="restaurantPhone">
+
+<label>العنوان</label>
+
+<input id="restaurantAddress">
+
+<button
+class="save"
+onclick="saveRestaurant()">
+حفظ بيانات المطعم
+</button>
+
+<div
+id="restaurantMessage"
+class="small">
+</div>
+
+</section>
+
+
+<section class="card">
+
+<h2>🔗 رابط المنيو</h2>
+
+<p class="small">
+ده الرابط الذي سيشاهده العملاء.
+</p>
+
+<a
+id="menuLink"
+class="menu-link"
+target="_blank">
+جاري التحميل...
+</a>
+
+</section>
+
+
+<section class="card">
+
+<h2>📂 أقسام المنيو</h2>
+
+<input
+id="categoryName"
+placeholder="مثال: المشروبات">
+
+<button
+class="add"
+onclick="addCategory()">
++ إضافة قسم
+</button>
+
+<div id="categories"></div>
+
+</section>
+
+
+<section class="card">
+
+<h2>🍽️ إضافة صنف</h2>
+
+<label>اسم الصنف</label>
+
+<input
+id="itemName"
+placeholder="مثال: برجر لحم">
+
+<label>السعر</label>
+
+<input
+id="itemPrice"
+type="number"
+step="0.01"
+placeholder="150">
+
+<label>القسم</label>
+
+<select id="itemCategory">
+<option value="">
+بدون قسم
+</option>
+</select>
+
+<label>الوصف</label>
+
+<textarea
+id="itemDescription"
+placeholder="وصف الصنف"></textarea>
+
+<label>رابط الصورة</label>
+
+<input
+id="itemImage"
+placeholder="https://...">
+
+<button
+class="save"
+onclick="addItem()">
+إضافة الصنف
+</button>
+
+<div id="itemMessage"
+class="small">
+</div>
+
+</section>
+
+
+<section class="card full">
+
+<h2>📋 أصناف المنيو</h2>
+
+<div id="items">
+جاري التحميل...
+</div>
+
+</section>
+
+</div>
 
 </main>
 
+
 <script>
 
-async function loadUser(){
+let restaurant=null;
+let categories=[];
+let items=[];
 
- const response = await fetch("/api/me",{
-  credentials:"same-origin"
- });
 
- if(!response.ok){
-  location.href="/login";
-  return;
- }
+async function api(url,options={}){
 
- const data = await response.json();
-
- if(!data.ok){
-  location.href="/login";
-  return;
- }
-
- document.getElementById("welcome").textContent =
-  "أهلاً بك يا " + data.user.name + " 👋";
+const response =
+await fetch(url,{
+...options,
+credentials:"same-origin",
+headers:{
+"Content-Type":
+"application/json",
+...(options.headers||{})
 }
+});
+
+const data =
+await response.json();
+
+if(!response.ok || !data.ok){
+throw new Error(
+data.error ||
+"حدث خطأ"
+);
+}
+
+return data;
+}
+
+
+async function load(){
+
+try{
+
+const me =
+await api("/api/me");
+
+document.getElementById(
+"welcome"
+).textContent =
+"أهلاً بك يا " +
+me.user.name +
+" 👋";
+
+
+const restaurantData =
+await api("/api/restaurant");
+
+restaurant =
+restaurantData.restaurant;
+
+
+document.getElementById(
+"restaurantName"
+).value =
+restaurant.name || "";
+
+document.getElementById(
+"restaurantDescription"
+).value =
+restaurant.description || "";
+
+document.getElementById(
+"restaurantPhone"
+).value =
+restaurant.phone || "";
+
+document.getElementById(
+"restaurantAddress"
+).value =
+restaurant.address || "";
+
+
+const link =
+location.origin +
+"/menu/" +
+restaurant.slug;
+
+const menuLink =
+document.getElementById(
+"menuLink"
+);
+
+menuLink.href=link;
+menuLink.textContent=link;
+
+
+await loadCategories();
+await loadItems();
+
+}catch(error){
+
+location.href="/login";
+
+}
+
+}
+
+
+async function saveRestaurant(){
+
+try{
+
+await api(
+"/api/restaurant",
+{
+method:"PUT",
+body:JSON.stringify({
+
+name:
+document.getElementById(
+"restaurantName"
+).value,
+
+description:
+document.getElementById(
+"restaurantDescription"
+).value,
+
+phone:
+document.getElementById(
+"restaurantPhone"
+).value,
+
+address:
+document.getElementById(
+"restaurantAddress"
+).value
+
+})
+}
+);
+
+document.getElementById(
+"restaurantMessage"
+).textContent =
+"تم حفظ البيانات ✓";
+
+}catch(error){
+
+document.getElementById(
+"restaurantMessage"
+).textContent =
+error.message;
+
+}
+
+}
+
+
+async function loadCategories(){
+
+const data =
+await api("/api/categories");
+
+categories=data.categories;
+
+renderCategories();
+
+}
+
+
+function renderCategories(){
+
+const box =
+document.getElementById(
+"categories"
+);
+
+const select =
+document.getElementById(
+"itemCategory"
+);
+
+box.innerHTML="";
+
+select.innerHTML =
+'<option value="">بدون قسم</option>';
+
+categories.forEach(category=>{
+
+const row =
+document.createElement("div");
+
+row.className=
+"category-row";
+
+row.innerHTML=`
+
+<strong>
+${escapeHtml(category.name)}
+</strong>
+
+<button
+class="danger"
+style="float:left"
+onclick="removeCategory('${category.id}')">
+حذف
+</button>
+
+`;
+
+box.appendChild(row);
+
+
+const option =
+document.createElement("option");
+
+option.value=category.id;
+option.textContent=category.name;
+
+select.appendChild(option);
+
+});
+
+if(!categories.length){
+
+box.innerHTML =
+'<div class="small">لم تتم إضافة أقسام بعد.</div>';
+
+}
+
+}
+
+
+async function addCategory(){
+
+const name =
+document.getElementById(
+"categoryName"
+).value.trim();
+
+if(!name)
+return;
+
+try{
+
+await api(
+"/api/categories",
+{
+method:"POST",
+body:JSON.stringify({
+name
+})
+}
+);
+
+document.getElementById(
+"categoryName"
+).value="";
+
+await loadCategories();
+
+}catch(error){
+
+alert(error.message);
+
+}
+
+}
+
+
+async function removeCategory(id){
+
+if(!confirm(
+"هل تريد حذف هذا القسم؟"
+))
+return;
+
+try{
+
+await api(
+"/api/categories/"+id,
+{
+method:"DELETE"
+}
+);
+
+await loadCategories();
+await loadItems();
+
+}catch(error){
+
+alert(error.message);
+
+}
+
+}
+
+
+async function loadItems(){
+
+const data =
+await api("/api/items");
+
+items=data.items;
+
+renderItems();
+
+}
+
+
+function renderItems(){
+
+const box =
+document.getElementById("items");
+
+box.innerHTML="";
+
+if(!items.length){
+
+box.innerHTML =
+'<div class="small">لم تتم إضافة أصناف بعد.</div>';
+
+return;
+
+}
+
+items.forEach(item=>{
+
+const row =
+document.createElement("div");
+
+row.className="item-row";
+
+row.innerHTML=`
+
+<div>
+
+<strong>
+${escapeHtml(item.name)}
+</strong>
+
+<div class="small">
+${item.price} جنيه
+${item.category_name
+? " — "+escapeHtml(item.category_name)
+: ""}
+</div>
+
+<div class="small">
+${escapeHtml(item.description||"")}
+</div>
+
+</div>
+
+<div>
+
+<button
+class="danger"
+onclick="editItem('${item.id}')">
+تعديل
+</button>
+
+<button
+class="danger"
+onclick="removeItem('${item.id}')">
+حذف
+</button>
+
+</div>
+
+`;
+
+box.appendChild(row);
+
+});
+
+}
+
+
+async function addItem(){
+
+try{
+
+const name =
+document.getElementById(
+"itemName"
+).value.trim();
+
+const price =
+document.getElementById(
+"itemPrice"
+).value;
+
+const category_id =
+document.getElementById(
+"itemCategory"
+).value;
+
+const description =
+document.getElementById(
+"itemDescription"
+).value;
+
+const image =
+document.getElementById(
+"itemImage"
+).value;
+
+await api(
+"/api/items",
+{
+method:"POST",
+body:JSON.stringify({
+
+name,
+price,
+category_id,
+description,
+image
+
+})
+}
+);
+
+document.getElementById(
+"itemName"
+).value="";
+
+document.getElementById(
+"itemPrice"
+).value="";
+
+document.getElementById(
+"itemDescription"
+).value="";
+
+document.getElementById(
+"itemImage"
+).value="";
+
+document.getElementById(
+"itemMessage"
+).textContent =
+"تم إضافة الصنف ✓";
+
+await loadItems();
+
+}catch(error){
+
+document.getElementById(
+"itemMessage"
+).textContent =
+error.message;
+
+}
+
+}
+
+
+async function editItem(id){
+
+const item =
+items.find(x=>x.id===id);
+
+if(!item)
+return;
+
+const name =
+prompt(
+"اسم الصنف:",
+item.name
+);
+
+if(name===null)
+return;
+
+const price =
+prompt(
+"السعر:",
+item.price
+);
+
+if(price===null)
+return;
+
+const description =
+prompt(
+"الوصف:",
+item.description || ""
+);
+
+if(description===null)
+return;
+
+try{
+
+await api(
+"/api/items/"+id,
+{
+method:"PUT",
+body:JSON.stringify({
+
+name,
+price,
+description,
+category_id:
+item.category_id || "",
+image:
+item.image || ""
+
+})
+}
+);
+
+await loadItems();
+
+}catch(error){
+
+alert(error.message);
+
+}
+
+}
+
+
+async function removeItem(id){
+
+if(!confirm(
+"هل تريد حذف هذا الصنف؟"
+))
+return;
+
+try{
+
+await api(
+"/api/items/"+id,
+{
+method:"DELETE"
+}
+);
+
+await loadItems();
+
+}catch(error){
+
+alert(error.message);
+
+}
+
+}
+
 
 async function logout(){
 
- await fetch("/api/logout",{
-  method:"POST",
-  credentials:"same-origin"
- });
+await fetch(
+"/api/logout",
+{
+method:"POST",
+credentials:"same-origin"
+}
+);
 
- location.href="/";
+location.href="/";
+
 }
 
-loadUser();
+
+function escapeHtml(value){
+
+return String(value||"")
+.replaceAll("&","&amp;")
+.replaceAll("<","&lt;")
+.replaceAll(">","&gt;")
+.replaceAll('"',"&quot;")
+.replaceAll("'","&#039;");
+
+}
+
+
+load();
 
 </script>
 
@@ -1208,43 +2842,343 @@ loadUser();
 }
 
 
-/* =========================
-   HELPERS
-========================= */
+// =========================
+// PUBLIC MENU PAGE
+// =========================
 
-function clean(value) {
-  return String(value || "").trim();
+function publicMenuPage(
+  restaurant,
+  categories,
+  items
+) {
+
+  const categorySections =
+    categories.map(category => {
+
+      const categoryItems =
+        items.filter(
+          item =>
+            item.category_id === category.id
+        );
+
+      if (!categoryItems.length)
+        return "";
+
+      return `
+      <section class="category">
+
+        <h2>
+          ${escapeHtml(category.name)}
+        </h2>
+
+        <div class="items">
+
+        ${categoryItems.map(item => `
+
+          <article class="item">
+
+            ${
+              item.image
+              ? `
+              <img
+                src="${escapeHtml(item.image)}"
+                alt="${escapeHtml(item.name)}"
+              >
+              `
+              : ""
+            }
+
+            <div class="item-info">
+
+              <div class="item-top">
+
+                <h3>
+                  ${escapeHtml(item.name)}
+                </h3>
+
+                <strong>
+                  ${Number(item.price).toFixed(2)}
+                  ج
+                </strong>
+
+              </div>
+
+              ${
+                item.description
+                ? `
+                <p>
+                  ${escapeHtml(item.description)}
+                </p>
+                `
+                : ""
+              }
+
+            </div>
+
+          </article>
+
+        `).join("")}
+
+        </div>
+
+      </section>
+      `;
+
+    }).join("");
+
+
+  const uncategorized =
+    items.filter(
+      item => !item.category_id
+    );
+
+
+  return `
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+content="width=device-width,initial-scale=1">
+
+<title>
+${escapeHtml(restaurant.name)}
+| لمسة
+</title>
+
+<style>
+
+*{
+box-sizing:border-box;
 }
 
-function isEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+body{
+margin:0;
+font-family:Arial,sans-serif;
+background:#f7f5f1;
+color:#222;
 }
 
-function json(data, status = 200) {
-  return new Response(
-    JSON.stringify(data),
-    {
-      status,
-      headers:{
-        ...corsHeaders(),
-        "content-type":"application/json; charset=UTF-8"
-      }
-    }
-  );
+.hero{
+background:#222;
+color:white;
+text-align:center;
+padding:55px 20px;
 }
 
-function html(content) {
-  return new Response(content,{
-    headers:{
-      "content-type":"text/html; charset=UTF-8"
-    }
-  });
+.logo{
+font-size:34px;
+font-weight:900;
+margin-bottom:15px;
 }
 
-function corsHeaders() {
-  return {
-    "Access-Control-Allow-Origin":"*",
-    "Access-Control-Allow-Methods":"GET,POST,PUT,DELETE,OPTIONS",
-    "Access-Control-Allow-Headers":"Content-Type"
-  };
+.hero h1{
+margin:0;
+font-size:38px;
+}
+
+.hero p{
+color:#ddd;
+max-width:650px;
+margin:15px auto 0;
+line-height:1.8;
+}
+
+.menu{
+max-width:900px;
+margin:auto;
+padding:25px 16px 60px;
+}
+
+.category{
+margin-bottom:35px;
+}
+
+.category h2{
+font-size:25px;
+margin-bottom:15px;
+}
+
+.items{
+display:grid;
+gap:12px;
+}
+
+.item{
+background:white;
+border:1px solid #e9e5de;
+border-radius:16px;
+padding:15px;
+display:flex;
+gap:15px;
+}
+
+.item img{
+width:90px;
+height:90px;
+object-fit:cover;
+border-radius:12px;
+}
+
+.item-info{
+flex:1;
+}
+
+.item-top{
+display:flex;
+align-items:flex-start;
+justify-content:space-between;
+gap:15px;
+}
+
+.item h3{
+margin:0;
+font-size:18px;
+}
+
+.item strong{
+white-space:nowrap;
+}
+
+.item p{
+color:#777;
+line-height:1.6;
+margin:8px 0 0;
+}
+
+.footer{
+text-align:center;
+padding:25px;
+color:#888;
+font-size:13px;
+}
+
+@media(max-width:600px){
+
+.hero{
+padding:40px 18px;
+}
+
+.hero h1{
+font-size:30px;
+}
+
+.item img{
+width:75px;
+height:75px;
+}
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<header class="hero">
+
+<div class="logo">
+لمسة
+</div>
+
+<h1>
+${escapeHtml(restaurant.name)}
+</h1>
+
+${
+restaurant.description
+? `
+<p>
+${escapeHtml(restaurant.description)}
+</p>
+`
+: ""
+}
+
+</header>
+
+<main class="menu">
+
+${categorySections}
+
+${
+uncategorized.length
+? `
+<section class="category">
+
+<h2>أصناف أخرى</h2>
+
+<div class="items">
+
+${uncategorized.map(item=>`
+
+<article class="item">
+
+${
+item.image
+? `
+<img
+src="${escapeHtml(item.image)}"
+alt="${escapeHtml(item.name)}">
+`
+: ""
+}
+
+<div class="item-info">
+
+<div class="item-top">
+
+<h3>
+${escapeHtml(item.name)}
+</h3>
+
+<strong>
+${Number(item.price).toFixed(2)}
+ج
+</strong>
+
+</div>
+
+${
+item.description
+? `<p>${escapeHtml(item.description)}</p>`
+: ""
+}
+
+</div>
+
+</article>
+
+`).join("")}
+
+</div>
+
+</section>
+`
+: ""
+}
+
+</main>
+
+<div class="footer">
+Powered by LAMSA — لمسة
+</div>
+
+</body>
+</html>
+`;
+}
+
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
