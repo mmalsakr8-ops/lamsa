@@ -24,47 +24,70 @@ export default {
         });
       }
 
-      if (path === "/api/register" && request.method === "POST")
+      if (path === "/api/register" && request.method === "POST") {
         return register(request, env);
+      }
 
-      if (path === "/api/login" && request.method === "POST")
+      if (path === "/api/login" && request.method === "POST") {
         return login(request, env);
+      }
 
-      if (path === "/api/logout" && request.method === "POST")
+      if (path === "/api/logout" && request.method === "POST") {
         return logout(request, env);
+      }
 
-      if (path === "/api/me" && request.method === "GET")
+      if (path === "/api/me" && request.method === "GET") {
         return me(request, env);
+      }
 
-      if (path === "/api/restaurant" && request.method === "GET")
+      if (path === "/api/restaurant" && request.method === "GET") {
         return getRestaurant(request, env);
+      }
 
-      if (path === "/api/restaurant" && request.method === "PUT")
+      if (path === "/api/restaurant" && request.method === "PUT") {
         return updateRestaurant(request, env);
+      }
 
-      if (path === "/api/categories" && request.method === "GET")
+      if (path === "/api/categories" && request.method === "GET") {
         return getCategories(request, env);
+      }
 
-      if (path === "/api/categories" && request.method === "POST")
+      if (path === "/api/categories" && request.method === "POST") {
         return createCategory(request, env);
+      }
 
-      if (path.startsWith("/api/categories/") && request.method === "DELETE")
+      if (
+        path.startsWith("/api/categories/") &&
+        request.method === "DELETE"
+      ) {
         return deleteCategory(request, env);
+      }
 
-      if (path === "/api/items" && request.method === "GET")
+      if (path === "/api/items" && request.method === "GET") {
         return getItems(request, env);
+      }
 
-      if (path === "/api/items" && request.method === "POST")
+      if (path === "/api/items" && request.method === "POST") {
         return createItem(request, env);
+      }
 
-      if (path.startsWith("/api/items/") && request.method === "PUT")
+      if (
+        path.startsWith("/api/items/") &&
+        request.method === "PUT"
+      ) {
         return updateItem(request, env);
+      }
 
-      if (path.startsWith("/api/items/") && request.method === "DELETE")
+      if (
+        path.startsWith("/api/items/") &&
+        request.method === "DELETE"
+      ) {
         return deleteItem(request, env);
+      }
 
-      if (path.startsWith("/menu/"))
+      if (path.startsWith("/menu/")) {
         return publicMenu(request, env);
+      }
 
       if (
         path === "/login" ||
@@ -74,8 +97,9 @@ export default {
         return html(authPage());
       }
 
-      if (path === "/dashboard")
+      if (path === "/dashboard") {
         return html(dashboardPage());
+      }
 
       return html(homePage());
 
@@ -221,9 +245,10 @@ async function register(request, env) {
     .prepare(`SELECT COUNT(*) AS total FROM users`)
     .first();
 
-  const role = Number(count.total) === 0
-    ? "admin"
-    : "customer";
+  const role =
+    Number(count.total) === 0
+      ? "admin"
+      : "customer";
 
   const id = crypto.randomUUID();
   const passwordHash = await hashPassword(password);
@@ -272,8 +297,10 @@ async function register(request, env) {
       status: 201,
       headers: {
         ...corsHeaders(),
-        "content-type": "application/json; charset=UTF-8",
-        "set-cookie": sessionCookie(session)
+        "content-type":
+          "application/json; charset=UTF-8",
+        "set-cookie":
+          sessionCookie(session)
       }
     }
   );
@@ -283,13 +310,17 @@ async function register(request, env) {
 async function login(request, env) {
   const body = await request.json();
 
-  const identifier = clean(body.identifier).toLowerCase();
-  const password = String(body.password || "");
+  const identifier =
+    clean(body.identifier).toLowerCase();
+
+  const password =
+    String(body.password || "");
 
   if (!identifier || !password) {
     return json({
       ok: false,
-      error: "أدخل البريد أو رقم الهاتف وكلمة المرور"
+      error:
+        "أدخل البريد أو رقم الهاتف وكلمة المرور"
     }, 400);
   }
 
@@ -298,7 +329,10 @@ async function login(request, env) {
     FROM users
     WHERE LOWER(email) = ? OR phone = ?
     LIMIT 1
-  `).bind(identifier, identifier).first();
+  `).bind(
+    identifier,
+    identifier
+  ).first();
 
   if (!user) {
     return json({
@@ -307,10 +341,11 @@ async function login(request, env) {
     }, 401);
   }
 
-  const valid = await verifyPassword(
-    password,
-    user.password_hash
-  );
+  const valid =
+    await verifyPassword(
+      password,
+      user.password_hash
+    );
 
   if (!valid) {
     return json({
@@ -319,18 +354,25 @@ async function login(request, env) {
     }, 401);
   }
 
-  const session = await createSession(env, user.id);
+  const session =
+    await createSession(
+      env,
+      user.id
+    );
 
   return new Response(
     JSON.stringify({
       ok: true,
-      message: "تم تسجيل الدخول بنجاح"
+      message:
+        "تم تسجيل الدخول بنجاح"
     }),
     {
       headers: {
         ...corsHeaders(),
-        "content-type": "application/json; charset=UTF-8",
-        "set-cookie": sessionCookie(session)
+        "content-type":
+          "application/json; charset=UTF-8",
+        "set-cookie":
+          sessionCookie(session)
       }
     }
   );
@@ -338,11 +380,14 @@ async function login(request, env) {
 
 
 async function createSession(env, userId) {
-  const id = crypto.randomUUID();
+  const id =
+    crypto.randomUUID();
 
-  const expires = new Date(
-    Date.now() + SESSION_DAYS * 86400000
-  ).toISOString();
+  const expires =
+    new Date(
+      Date.now() +
+      SESSION_DAYS * 86400000
+    ).toISOString();
 
   await env.DB.prepare(`
     INSERT INTO sessions
@@ -362,18 +407,26 @@ async function createSession(env, userId) {
 
 
 function sessionCookie(session) {
-  return `${COOKIE}=${session.id}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${SESSION_DAYS * 86400}`;
+  return (
+    `${COOKIE}=${session.id}; ` +
+    `Path=/; HttpOnly; Secure; ` +
+    `SameSite=Lax; ` +
+    `Max-Age=${SESSION_DAYS * 86400}`
+  );
 }
 
 
 function getCookie(request, name) {
-  const header = request.headers.get("Cookie") || "";
+  const header =
+    request.headers.get("Cookie") || "";
 
   for (const part of header.split(";")) {
-    const [key, ...rest] = part.trim().split("=");
+    const [key, ...rest] =
+      part.trim().split("=");
 
-    if (key === name)
+    if (key === name) {
       return rest.join("=");
+    }
   }
 
   return null;
@@ -381,29 +434,33 @@ function getCookie(request, name) {
 
 
 async function currentUser(request, env) {
-  const sessionId = getCookie(request, COOKIE);
+  const sessionId =
+    getCookie(request, COOKIE);
 
-  if (!sessionId)
+  if (!sessionId) {
     return null;
+  }
 
-  const session = await env.DB.prepare(`
-    SELECT
-      sessions.id,
-      sessions.expires_at,
-      users.id AS user_id,
-      users.name,
-      users.email,
-      users.phone,
-      users.role
-    FROM sessions
-    JOIN users
-      ON users.id = sessions.user_id
-    WHERE sessions.id = ?
-    LIMIT 1
-  `).bind(sessionId).first();
+  const session =
+    await env.DB.prepare(`
+      SELECT
+        sessions.id,
+        sessions.expires_at,
+        users.id AS user_id,
+        users.name,
+        users.email,
+        users.phone,
+        users.role
+      FROM sessions
+      JOIN users
+        ON users.id = sessions.user_id
+      WHERE sessions.id = ?
+      LIMIT 1
+    `).bind(sessionId).first();
 
-  if (!session)
+  if (!session) {
     return null;
+  }
 
   if (
     new Date(session.expires_at).getTime() <
@@ -428,7 +485,11 @@ async function currentUser(request, env) {
 
 
 async function me(request, env) {
-  const user = await currentUser(request, env);
+  const user =
+    await currentUser(
+      request,
+      env
+    );
 
   if (!user) {
     return json({
@@ -446,7 +507,8 @@ async function me(request, env) {
 
 
 async function logout(request, env) {
-  const sessionId = getCookie(request, COOKIE);
+  const sessionId =
+    getCookie(request, COOKIE);
 
   if (sessionId) {
     await env.DB.prepare(`
@@ -458,12 +520,14 @@ async function logout(request, env) {
   return new Response(
     JSON.stringify({
       ok: true,
-      message: "تم تسجيل الخروج"
+      message:
+        "تم تسجيل الخروج"
     }),
     {
       headers: {
         ...corsHeaders(),
-        "content-type": "application/json; charset=UTF-8",
+        "content-type":
+          "application/json; charset=UTF-8",
         "set-cookie":
           `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`
       }
@@ -477,17 +541,23 @@ async function logout(request, env) {
 // =========================
 
 async function getRestaurant(request, env) {
-  const user = await requireUser(request, env);
+  const user =
+    await requireUser(
+      request,
+      env
+    );
 
-  if (!user)
+  if (!user) {
     return unauthorized();
+  }
 
-  const restaurant = await env.DB.prepare(`
-    SELECT *
-    FROM restaurants
-    WHERE user_id = ?
-    LIMIT 1
-  `).bind(user.id).first();
+  const restaurant =
+    await env.DB.prepare(`
+      SELECT *
+      FROM restaurants
+      WHERE user_id = ?
+      LIMIT 1
+    `).bind(user.id).first();
 
   return json({
     ok: true,
@@ -497,18 +567,33 @@ async function getRestaurant(request, env) {
 
 
 async function updateRestaurant(request, env) {
-  const user = await requireUser(request, env);
+  const user =
+    await requireUser(
+      request,
+      env
+    );
 
-  if (!user)
+  if (!user) {
     return unauthorized();
+  }
 
-  const body = await request.json();
+  const body =
+    await request.json();
 
-  const name = clean(body.name);
-  const description = clean(body.description);
-  const phone = clean(body.phone);
-  const address = clean(body.address);
-  const logo = clean(body.logo);
+  const name =
+    clean(body.name);
+
+  const description =
+    clean(body.description);
+
+  const phone =
+    clean(body.phone);
+
+  const address =
+    clean(body.address);
+
+  const logo =
+    clean(body.logo);
 
   if (!name) {
     return json({
@@ -517,12 +602,13 @@ async function updateRestaurant(request, env) {
     }, 400);
   }
 
-  const restaurant = await env.DB.prepare(`
-    SELECT *
-    FROM restaurants
-    WHERE user_id = ?
-    LIMIT 1
-  `).bind(user.id).first();
+  const restaurant =
+    await env.DB.prepare(`
+      SELECT *
+      FROM restaurants
+      WHERE user_id = ?
+      LIMIT 1
+    `).bind(user.id).first();
 
   if (!restaurant) {
     return json({
@@ -551,7 +637,8 @@ async function updateRestaurant(request, env) {
 
   return json({
     ok: true,
-    message: "تم حفظ بيانات المطعم"
+    message:
+      "تم حفظ بيانات المطعم"
   });
 }
 
@@ -561,52 +648,82 @@ async function updateRestaurant(request, env) {
 // =========================
 
 async function getCategories(request, env) {
-  const user = await requireUser(request, env);
+  const user =
+    await requireUser(
+      request,
+      env
+    );
 
-  if (!user)
+  if (!user) {
     return unauthorized();
+  }
 
-  const restaurant = await getRestaurantByUser(env, user.id);
+  const restaurant =
+    await getRestaurantByUser(
+      env,
+      user.id
+    );
 
-  const result = await env.DB.prepare(`
-    SELECT *
-    FROM categories
-    WHERE restaurant_id = ?
-    ORDER BY sort_order ASC, created_at ASC
-  `).bind(restaurant.id).all();
+  const result =
+    await env.DB.prepare(`
+      SELECT *
+      FROM categories
+      WHERE restaurant_id = ?
+      ORDER BY sort_order ASC, created_at ASC
+    `).bind(
+      restaurant.id
+    ).all();
 
   return json({
     ok: true,
-    categories: result.results || []
+    categories:
+      result.results || []
   });
 }
 
 
 async function createCategory(request, env) {
-  const user = await requireUser(request, env);
+  const user =
+    await requireUser(
+      request,
+      env
+    );
 
-  if (!user)
+  if (!user) {
     return unauthorized();
+  }
 
-  const restaurant = await getRestaurantByUser(env, user.id);
-  const body = await request.json();
+  const restaurant =
+    await getRestaurantByUser(
+      env,
+      user.id
+    );
 
-  const name = clean(body.name);
+  const body =
+    await request.json();
+
+  const name =
+    clean(body.name);
 
   if (!name) {
     return json({
       ok: false,
-      error: "اسم القسم مطلوب"
+      error:
+        "اسم القسم مطلوب"
     }, 400);
   }
 
-  const count = await env.DB.prepare(`
-    SELECT COUNT(*) AS total
-    FROM categories
-    WHERE restaurant_id = ?
-  `).bind(restaurant.id).first();
+  const count =
+    await env.DB.prepare(`
+      SELECT COUNT(*) AS total
+      FROM categories
+      WHERE restaurant_id = ?
+    `).bind(
+      restaurant.id
+    ).first();
 
-  const id = crypto.randomUUID();
+  const id =
+    crypto.randomUUID();
 
   await env.DB.prepare(`
     INSERT INTO categories
@@ -621,7 +738,8 @@ async function createCategory(request, env) {
 
   return json({
     ok: true,
-    message: "تم إضافة القسم",
+    message:
+      "تم إضافة القسم",
     category: {
       id,
       name
@@ -631,32 +749,46 @@ async function createCategory(request, env) {
 
 
 async function deleteCategory(request, env) {
-  const user = await requireUser(request, env);
+  const user =
+    await requireUser(
+      request,
+      env
+    );
 
-  if (!user)
+  if (!user) {
     return unauthorized();
+  }
 
-  const restaurant = await getRestaurantByUser(env, user.id);
+  const restaurant =
+    await getRestaurantByUser(
+      env,
+      user.id
+    );
 
-  const id = decodeURIComponent(
-    request.url.split("/api/categories/")[1]
-  );
+  const id =
+    decodeURIComponent(
+      request.url.split(
+        "/api/categories/"
+      )[1]
+    );
 
-  const category = await env.DB.prepare(`
-    SELECT id
-    FROM categories
-    WHERE id = ?
-    AND restaurant_id = ?
-    LIMIT 1
-  `).bind(
-    id,
-    restaurant.id
-  ).first();
+  const category =
+    await env.DB.prepare(`
+      SELECT id
+      FROM categories
+      WHERE id = ?
+      AND restaurant_id = ?
+      LIMIT 1
+    `).bind(
+      id,
+      restaurant.id
+    ).first();
 
   if (!category) {
     return json({
       ok: false,
-      error: "القسم غير موجود"
+      error:
+        "القسم غير موجود"
     }, 404);
   }
 
@@ -681,7 +813,8 @@ async function deleteCategory(request, env) {
 
   return json({
     ok: true,
-    message: "تم حذف القسم"
+    message:
+      "تم حذف القسم"
   });
 }
 
@@ -691,87 +824,131 @@ async function deleteCategory(request, env) {
 // =========================
 
 async function getItems(request, env) {
-  const user = await requireUser(request, env);
+  const user =
+    await requireUser(
+      request,
+      env
+    );
 
-  if (!user)
+  if (!user) {
     return unauthorized();
+  }
 
-  const restaurant = await getRestaurantByUser(env, user.id);
+  const restaurant =
+    await getRestaurantByUser(
+      env,
+      user.id
+    );
 
-  const result = await env.DB.prepare(`
-    SELECT
-      items.*,
-      categories.name AS category_name
-    FROM items
-    LEFT JOIN categories
-      ON categories.id = items.category_id
-    WHERE items.restaurant_id = ?
-    ORDER BY items.sort_order ASC, items.created_at ASC
-  `).bind(restaurant.id).all();
+  const result =
+    await env.DB.prepare(`
+      SELECT
+        items.*,
+        categories.name AS category_name
+      FROM items
+      LEFT JOIN categories
+        ON categories.id = items.category_id
+      WHERE items.restaurant_id = ?
+      ORDER BY items.sort_order ASC, items.created_at ASC
+    `).bind(
+      restaurant.id
+    ).all();
 
   return json({
     ok: true,
-    items: result.results || []
+    items:
+      result.results || []
   });
 }
 
 
 async function createItem(request, env) {
-  const user = await requireUser(request, env);
+  const user =
+    await requireUser(
+      request,
+      env
+    );
 
-  if (!user)
+  if (!user) {
     return unauthorized();
+  }
 
-  const restaurant = await getRestaurantByUser(env, user.id);
-  const body = await request.json();
+  const restaurant =
+    await getRestaurantByUser(
+      env,
+      user.id
+    );
 
-  const name = clean(body.name);
-  const description = clean(body.description);
-  const price = Number(body.price || 0);
-  const image = clean(body.image);
-  const categoryId = clean(body.category_id);
+  const body =
+    await request.json();
+
+  const name =
+    clean(body.name);
+
+  const description =
+    clean(body.description);
+
+  const price =
+    Number(body.price || 0);
+
+  const image =
+    clean(body.image);
+
+  const categoryId =
+    clean(body.category_id);
 
   if (!name) {
     return json({
       ok: false,
-      error: "اسم الصنف مطلوب"
+      error:
+        "اسم الصنف مطلوب"
     }, 400);
   }
 
-  if (!Number.isFinite(price) || price < 0) {
+  if (
+    !Number.isFinite(price) ||
+    price < 0
+  ) {
     return json({
       ok: false,
-      error: "السعر غير صحيح"
+      error:
+        "السعر غير صحيح"
     }, 400);
   }
 
   if (categoryId) {
-    const category = await env.DB.prepare(`
-      SELECT id
-      FROM categories
-      WHERE id = ?
-      AND restaurant_id = ?
-      LIMIT 1
-    `).bind(
-      categoryId,
-      restaurant.id
-    ).first();
+    const category =
+      await env.DB.prepare(`
+        SELECT id
+        FROM categories
+        WHERE id = ?
+        AND restaurant_id = ?
+        LIMIT 1
+      `).bind(
+        categoryId,
+        restaurant.id
+      ).first();
 
     if (!category) {
       return json({
         ok: false,
-        error: "القسم غير صحيح"
+        error:
+          "القسم غير صحيح"
       }, 400);
     }
   }
 
-  const count = await env.DB.prepare(`
-    SELECT COUNT(*) AS total
-    FROM items
-    WHERE restaurant_id = ?
-  `).bind(restaurant.id).first();
+  const count =
+    await env.DB.prepare(`
+      SELECT COUNT(*) AS total
+      FROM items
+      WHERE restaurant_id = ?
+    `).bind(
+      restaurant.id
+    ).first();
 
-  const id = crypto.randomUUID();
+  const id =
+    crypto.randomUUID();
 
   await env.DB.prepare(`
     INSERT INTO items
@@ -799,87 +976,120 @@ async function createItem(request, env) {
 
   return json({
     ok: true,
-    message: "تم إضافة الصنف",
+    message:
+      "تم إضافة الصنف",
     item: {
       id,
       name,
       description,
       price,
       image,
-      category_id: categoryId || null
+      category_id:
+        categoryId || null
     }
   }, 201);
 }
 
 
 async function updateItem(request, env) {
-  const user = await requireUser(request, env);
+  const user =
+    await requireUser(
+      request,
+      env
+    );
 
-  if (!user)
+  if (!user) {
     return unauthorized();
+  }
 
-  const restaurant = await getRestaurantByUser(env, user.id);
+  const restaurant =
+    await getRestaurantByUser(
+      env,
+      user.id
+    );
 
-  const id = decodeURIComponent(
-    request.url.split("/api/items/")[1]
-  );
+  const id =
+    decodeURIComponent(
+      request.url.split(
+        "/api/items/"
+      )[1]
+    );
 
-  const body = await request.json();
+  const body =
+    await request.json();
 
-  const name = clean(body.name);
-  const description = clean(body.description);
-  const price = Number(body.price || 0);
-  const image = clean(body.image);
-  const categoryId = clean(body.category_id);
+  const name =
+    clean(body.name);
+
+  const description =
+    clean(body.description);
+
+  const price =
+    Number(body.price || 0);
+
+  const image =
+    clean(body.image);
+
+  const categoryId =
+    clean(body.category_id);
 
   if (!name) {
     return json({
       ok: false,
-      error: "اسم الصنف مطلوب"
+      error:
+        "اسم الصنف مطلوب"
     }, 400);
   }
 
-  if (!Number.isFinite(price) || price < 0) {
+  if (
+    !Number.isFinite(price) ||
+    price < 0
+  ) {
     return json({
       ok: false,
-      error: "السعر غير صحيح"
+      error:
+        "السعر غير صحيح"
     }, 400);
   }
 
-  const item = await env.DB.prepare(`
-    SELECT id
-    FROM items
-    WHERE id = ?
-    AND restaurant_id = ?
-    LIMIT 1
-  `).bind(
-    id,
-    restaurant.id
-  ).first();
-
-  if (!item) {
-    return json({
-      ok: false,
-      error: "الصنف غير موجود"
-    }, 404);
-  }
-
-  if (categoryId) {
-    const category = await env.DB.prepare(`
+  const item =
+    await env.DB.prepare(`
       SELECT id
-      FROM categories
+      FROM items
       WHERE id = ?
       AND restaurant_id = ?
       LIMIT 1
     `).bind(
-      categoryId,
+      id,
       restaurant.id
     ).first();
+
+  if (!item) {
+    return json({
+      ok: false,
+      error:
+        "الصنف غير موجود"
+    }, 404);
+  }
+
+  if (categoryId) {
+    const category =
+      await env.DB.prepare(`
+        SELECT id
+        FROM categories
+        WHERE id = ?
+        AND restaurant_id = ?
+        LIMIT 1
+      `).bind(
+        categoryId,
+        restaurant.id
+      ).first();
 
     if (!category) {
       return json({
         ok: false,
-        error: "القسم غير صحيح"
+        error:
+          "القسم غير صحيح"
       }, 400);
     }
   }
@@ -906,42 +1116,58 @@ async function updateItem(request, env) {
 
   return json({
     ok: true,
-    message: "تم تعديل الصنف"
+    message:
+      "تم تعديل الصنف"
   });
 }
 
 
 async function deleteItem(request, env) {
-  const user = await requireUser(request, env);
+  const user =
+    await requireUser(
+      request,
+      env
+    );
 
-  if (!user)
+  if (!user) {
     return unauthorized();
+  }
 
-  const restaurant = await getRestaurantByUser(env, user.id);
+  const restaurant =
+    await getRestaurantByUser(
+      env,
+      user.id
+    );
 
-  const id = decodeURIComponent(
-    request.url.split("/api/items/")[1]
-  );
+  const id =
+    decodeURIComponent(
+      request.url.split(
+        "/api/items/"
+      )[1]
+    );
 
-  const result = await env.DB.prepare(`
-    DELETE FROM items
-    WHERE id = ?
-    AND restaurant_id = ?
-  `).bind(
-    id,
-    restaurant.id
-  ).run();
+  const result =
+    await env.DB.prepare(`
+      DELETE FROM items
+      WHERE id = ?
+      AND restaurant_id = ?
+    `).bind(
+      id,
+      restaurant.id
+    ).run();
 
   if (!result.success) {
     return json({
       ok: false,
-      error: "تعذر حذف الصنف"
+      error:
+        "تعذر حذف الصنف"
     }, 400);
   }
 
   return json({
     ok: true,
-    message: "تم حذف الصنف"
+    message:
+      "تم حذف الصنف"
   });
 }
 
@@ -951,52 +1177,66 @@ async function deleteItem(request, env) {
 // =========================
 
 async function publicMenu(request, env) {
-  const slug = decodeURIComponent(
-    new URL(request.url).pathname.replace("/menu/", "")
-  );
+  const slug =
+    decodeURIComponent(
+      new URL(request.url)
+        .pathname
+        .replace("/menu/", "")
+    );
 
   if (!slug) {
-    return html(`
-      <h1 style="text-align:center;margin-top:80px">
-        المنيو غير موجود
-      </h1>
-    `, 404);
+    return html(
+      '<h1 style="text-align:center;margin-top:80px">' +
+      'المنيو غير موجود' +
+      '</h1>',
+      404
+    );
   }
 
-  const restaurant = await env.DB.prepare(`
-    SELECT *
-    FROM restaurants
-    WHERE slug = ?
-    LIMIT 1
-  `).bind(slug).first();
+  const restaurant =
+    await env.DB.prepare(`
+      SELECT *
+      FROM restaurants
+      WHERE slug = ?
+      LIMIT 1
+    `).bind(slug).first();
 
   if (!restaurant) {
-    return html(`
-      <h1 style="text-align:center;margin-top:80px">
-        المنيو غير موجود
-      </h1>
-    `, 404);
+    return html(
+      '<h1 style="text-align:center;margin-top:80px">' +
+      'المنيو غير موجود' +
+      '</h1>',
+      404
+    );
   }
 
-  const categories = await env.DB.prepare(`
-    SELECT *
-    FROM categories
-    WHERE restaurant_id = ?
-    ORDER BY sort_order ASC
-  `).bind(restaurant.id).all();
+  const categories =
+    await env.DB.prepare(`
+      SELECT *
+      FROM categories
+      WHERE restaurant_id = ?
+      ORDER BY sort_order ASC
+    `).bind(
+      restaurant.id
+    ).all();
 
-  const items = await env.DB.prepare(`
-    SELECT *
-    FROM items
-    WHERE restaurant_id = ?
-    ORDER BY sort_order ASC
-  `).bind(restaurant.id).all();
+  const items =
+    await env.DB.prepare(`
+      SELECT *
+      FROM items
+      WHERE restaurant_id = ?
+      ORDER BY sort_order ASC
+    `).bind(
+      restaurant.id
+    ).all();
 
-  return html(publicMenuPage(
-    restaurant,
-    categories.results || [],
-    items.results || []
-  ));
+  return html(
+    publicMenuPage(
+      restaurant,
+      categories.results || [],
+      items.results || []
+    )
+  );
 }
 
 
@@ -1005,32 +1245,39 @@ async function publicMenu(request, env) {
 // =========================
 
 async function requireUser(request, env) {
-  return currentUser(request, env);
+  return currentUser(
+    request,
+    env
+  );
 }
 
 
 async function getRestaurantByUser(env, userId) {
-  let restaurant = await env.DB.prepare(`
-    SELECT *
-    FROM restaurants
-    WHERE user_id = ?
-    LIMIT 1
-  `).bind(userId).first();
-
-  if (!restaurant) {
-    const user = await env.DB.prepare(`
-      SELECT name
-      FROM users
-      WHERE id = ?
+  let restaurant =
+    await env.DB.prepare(`
+      SELECT *
+      FROM restaurants
+      WHERE user_id = ?
       LIMIT 1
     `).bind(userId).first();
 
-    const slug = await uniqueSlug(
-      env,
-      user?.name || "restaurant"
-    );
+  if (!restaurant) {
+    const user =
+      await env.DB.prepare(`
+        SELECT name
+        FROM users
+        WHERE id = ?
+        LIMIT 1
+      `).bind(userId).first();
 
-    const id = crypto.randomUUID();
+    const slug =
+      await uniqueSlug(
+        env,
+        user?.name || "restaurant"
+      );
+
+    const id =
+      crypto.randomUUID();
 
     await env.DB.prepare(`
       INSERT INTO restaurants
@@ -1043,12 +1290,13 @@ async function getRestaurantByUser(env, userId) {
       slug
     ).run();
 
-    restaurant = await env.DB.prepare(`
-      SELECT *
-      FROM restaurants
-      WHERE id = ?
-      LIMIT 1
-    `).bind(id).first();
+    restaurant =
+      await env.DB.prepare(`
+        SELECT *
+        FROM restaurants
+        WHERE id = ?
+        LIMIT 1
+      `).bind(id).first();
   }
 
   return restaurant;
@@ -1056,31 +1304,42 @@ async function getRestaurantByUser(env, userId) {
 
 
 async function uniqueSlug(env, name) {
-  let base = String(name || "restaurant")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\u0600-\u06ff]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  let base =
+    String(name || "restaurant")
+      .toLowerCase()
+      .trim()
+      .replace(
+        /[^a-z0-9\u0600-\u06ff]+/g,
+        "-"
+      )
+      .replace(
+        /^-+|-+$/g,
+        ""
+      );
 
-  if (!base)
+  if (!base) {
     base = "restaurant";
+  }
 
   let slug = base;
   let number = 1;
 
   while (true) {
-    const exists = await env.DB.prepare(`
-      SELECT id
-      FROM restaurants
-      WHERE slug = ?
-      LIMIT 1
-    `).bind(slug).first();
+    const exists =
+      await env.DB.prepare(`
+        SELECT id
+        FROM restaurants
+        WHERE slug = ?
+        LIMIT 1
+      `).bind(slug).first();
 
-    if (!exists)
+    if (!exists) {
       return slug;
+    }
 
     number++;
-    slug = `${base}-${number}`;
+    slug =
+      `${base}-${number}`;
   }
 }
 
@@ -1088,18 +1347,23 @@ async function uniqueSlug(env, name) {
 function unauthorized() {
   return json({
     ok: false,
-    error: "يجب تسجيل الدخول أولاً"
+    error:
+      "يجب تسجيل الدخول أولاً"
   }, 401);
 }
 
 
 function clean(value) {
-  return String(value || "").trim();
+  return String(
+    value || ""
+  ).trim();
 }
 
 
 function isEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    email
+  );
 }
 
 
@@ -1119,13 +1383,16 @@ function json(data, status = 200) {
 
 
 function html(content, status = 200) {
-  return new Response(content, {
-    status,
-    headers: {
-      "content-type":
-        "text/html; charset=UTF-8"
+  return new Response(
+    content,
+    {
+      status,
+      headers: {
+        "content-type":
+          "text/html; charset=UTF-8"
+      }
     }
-  });
+  );
 }
 
 
@@ -1171,20 +1438,36 @@ async function hashPassword(password) {
       256
     );
 
-  return `pbkdf2$100000$${bytesToBase64(salt)}$${bytesToBase64(new Uint8Array(bits))}`;
+  return (
+    `pbkdf2$100000$` +
+    `${bytesToBase64(salt)}$` +
+    `${bytesToBase64(
+      new Uint8Array(bits)
+    )}`
+  );
 }
 
 
-async function verifyPassword(password, stored) {
+async function verifyPassword(
+  password,
+  stored
+) {
   try {
-    const parts = stored.split("$");
+    const parts =
+      stored.split("$");
 
-    if (parts.length !== 4)
+    if (parts.length !== 4) {
       return false;
+    }
 
-    const iterations = Number(parts[1]);
-    const salt = base64ToBytes(parts[2]);
-    const expected = base64ToBytes(parts[3]);
+    const iterations =
+      Number(parts[1]);
+
+    const salt =
+      base64ToBytes(parts[2]);
+
+    const expected =
+      base64ToBytes(parts[3]);
 
     const key =
       await crypto.subtle.importKey(
@@ -1219,13 +1502,19 @@ async function verifyPassword(password, stored) {
 
 
 function timingSafeEqual(a, b) {
-  if (a.length !== b.length)
+  if (a.length !== b.length) {
     return false;
+  }
 
   let result = 0;
 
-  for (let i = 0; i < a.length; i++) {
-    result |= a[i] ^ b[i];
+  for (
+    let i = 0;
+    i < a.length;
+    i++
+  ) {
+    result |=
+      a[i] ^ b[i];
   }
 
   return result === 0;
@@ -1236,7 +1525,9 @@ function bytesToBase64(bytes) {
   let binary = "";
 
   for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
+    binary += String.fromCharCode(
+      byte
+    );
   }
 
   return btoa(binary);
@@ -1244,12 +1535,21 @@ function bytesToBase64(bytes) {
 
 
 function base64ToBytes(value) {
-  const binary = atob(value);
-  const bytes =
-    new Uint8Array(binary.length);
+  const binary =
+    atob(value);
 
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
+  const bytes =
+    new Uint8Array(
+      binary.length
+    );
+
+  for (
+    let i = 0;
+    i < binary.length;
+    i++
+  ) {
+    bytes[i] =
+      binary.charCodeAt(i);
   }
 
   return bytes;
@@ -1264,14 +1564,21 @@ function homePage() {
   return `
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
+
 <meta charset="UTF-8">
+
 <meta name="viewport"
 content="width=device-width,initial-scale=1">
+
 <title>لمسة | LAMSA</title>
 
 <style>
-*{box-sizing:border-box}
+
+*{
+box-sizing:border-box
+}
 
 body{
 margin:0;
@@ -1379,7 +1686,9 @@ color:white;
 background:white;
 border:1px solid #ddd;
 }
+
 </style>
+
 </head>
 
 <body>
@@ -1438,6 +1747,7 @@ onclick="location.href='/login'">
 </section>
 
 </body>
+
 </html>
 `;
 }
@@ -1451,9 +1761,11 @@ function authPage() {
   return `
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
 
 <meta charset="UTF-8">
+
 <meta name="viewport"
 content="width=device-width,initial-scale=1">
 
@@ -1565,13 +1877,16 @@ display:none;
 }
 
 </style>
+
 </head>
 
 <body>
 
 <div class="card">
 
-<div class="logo">لمسة</div>
+<div class="logo">
+لمسة
+</div>
 
 <div class="subtitle">
 LAMSA — منصتك الرقمية للمطاعم والكافيهات
@@ -1623,42 +1938,46 @@ type="submit">
 
 </form>
 
-
-<form id="registerForm"
+<form
+id="registerForm"
 class="hidden">
 
-<label>الاسم</label>
+<label>
+الاسم
+</label>
 
 <input
 id="registerName"
 type="text"
 required>
 
-
-<label>رقم الهاتف</label>
+<label>
+رقم الهاتف
+</label>
 
 <input
 id="registerPhone"
 type="tel"
 required>
 
-
-<label>البريد الإلكتروني</label>
+<label>
+البريد الإلكتروني
+</label>
 
 <input
 id="registerEmail"
 type="email"
 required>
 
-
-<label>كلمة المرور</label>
+<label>
+كلمة المرور
+</label>
 
 <input
 id="registerPassword"
 type="password"
 minlength="6"
 required>
-
 
 <button
 class="submit"
@@ -1668,220 +1987,274 @@ type="submit">
 
 </form>
 
-<div id="message"
-class="message"></div>
+<div
+id="message"
+class="message">
+</div>
 
-<a href="/" class="back">
+<a
+href="/"
+class="back">
 ← العودة للرئيسية
 </a>
 
 </div>
 
-
 <script>
 
 const loginForm =
-document.getElementById("loginForm");
+document.getElementById(
+  "loginForm"
+);
 
 const registerForm =
-document.getElementById("registerForm");
+document.getElementById(
+  "registerForm"
+);
 
 const loginTab =
-document.getElementById("loginTab");
+document.getElementById(
+  "loginTab"
+);
 
 const registerTab =
-document.getElementById("registerTab");
+document.getElementById(
+  "registerTab"
+);
 
 const message =
-document.getElementById("message");
+document.getElementById(
+  "message"
+);
 
 
 function showMessage(text){
-message.textContent=text;
-message.style.display="block";
+  message.textContent = text;
+  message.style.display = "block";
 }
 
 
 function showLogin(){
 
-loginForm.classList.remove("hidden");
-registerForm.classList.add("hidden");
+  loginForm.classList.remove(
+    "hidden"
+  );
 
-loginTab.classList.add("active");
-registerTab.classList.remove("active");
+  registerForm.classList.add(
+    "hidden"
+  );
 
-message.style.display="none";
+  loginTab.classList.add(
+    "active"
+  );
 
+  registerTab.classList.remove(
+    "active"
+  );
+
+  message.style.display =
+    "none";
 }
 
 
 function showRegister(){
 
-loginForm.classList.add("hidden");
-registerForm.classList.remove("hidden");
+  loginForm.classList.add(
+    "hidden"
+  );
 
-loginTab.classList.remove("active");
-registerTab.classList.add("active");
+  registerForm.classList.remove(
+    "hidden"
+  );
 
-message.style.display="none";
+  loginTab.classList.remove(
+    "active"
+  );
 
+  registerTab.classList.add(
+    "active"
+  );
+
+  message.style.display =
+    "none";
 }
 
 
 loginForm.addEventListener(
-"submit",
-async function(e){
+  "submit",
+  async function(e){
 
-e.preventDefault();
+    e.preventDefault();
 
-const button =
-loginForm.querySelector(
-"button[type=submit]"
+    const button =
+      loginForm.querySelector(
+        "button[type=submit]"
+      );
+
+    button.disabled = true;
+
+    button.textContent =
+      "جارٍ تسجيل الدخول...";
+
+    try{
+
+      const response =
+        await fetch(
+          "/api/login",
+          {
+            method:"POST",
+
+            headers:{
+              "Content-Type":
+                "application/json"
+            },
+
+            credentials:
+              "same-origin",
+
+            body:
+              JSON.stringify({
+
+                identifier:
+                  document.getElementById(
+                    "loginIdentifier"
+                  ).value.trim(),
+
+                password:
+                  document.getElementById(
+                    "loginPassword"
+                  ).value
+
+              })
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok ||
+        !data.ok
+      ) {
+        throw new Error(
+          data.error ||
+          "تعذر تسجيل الدخول"
+        );
+      }
+
+      location.href =
+        "/dashboard";
+
+    }catch(error){
+
+      showMessage(
+        error.message
+      );
+
+      button.disabled = false;
+
+      button.textContent =
+        "تسجيل الدخول";
+    }
+
+  }
 );
-
-button.disabled=true;
-button.textContent=
-"جارٍ تسجيل الدخول...";
-
-try{
-
-const response =
-await fetch("/api/login",{
-
-method:"POST",
-
-headers:{
-"Content-Type":
-"application/json"
-},
-
-credentials:"same-origin",
-
-body:JSON.stringify({
-
-identifier:
-document.getElementById(
-"loginIdentifier"
-).value.trim(),
-
-password:
-document.getElementById(
-"loginPassword"
-).value
-
-})
-
-});
-
-const data =
-await response.json();
-
-if(!response.ok || !data.ok){
-throw new Error(
-data.error ||
-"تعذر تسجيل الدخول"
-);
-}
-
-location.href="/dashboard";
-
-}catch(error){
-
-showMessage(error.message);
-
-button.disabled=false;
-button.textContent=
-"تسجيل الدخول";
-
-}
-
-});
 
 
 registerForm.addEventListener(
-"submit",
-async function(e){
+  "submit",
+  async function(e){
 
-e.preventDefault();
+    e.preventDefault();
 
-const button =
-registerForm.querySelector(
-"button[type=submit]"
+    const button =
+      registerForm.querySelector(
+        "button[type=submit]"
+      );
+
+    button.disabled = true;
+
+    button.textContent =
+      "جارٍ إنشاء الحساب...";
+
+    try{
+
+      const response =
+        await fetch(
+          "/api/register",
+          {
+            method:"POST",
+
+            headers:{
+              "Content-Type":
+                "application/json"
+            },
+
+            credentials:
+              "same-origin",
+
+            body:
+              JSON.stringify({
+
+                name:
+                  document.getElementById(
+                    "registerName"
+                  ).value.trim(),
+
+                phone:
+                  document.getElementById(
+                    "registerPhone"
+                  ).value.trim(),
+
+                email:
+                  document.getElementById(
+                    "registerEmail"
+                  ).value.trim(),
+
+                password:
+                  document.getElementById(
+                    "registerPassword"
+                  ).value
+
+              })
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok ||
+        !data.ok
+      ) {
+        throw new Error(
+          data.error ||
+          "تعذر إنشاء الحساب"
+        );
+      }
+
+      location.href =
+        "/dashboard";
+
+    }catch(error){
+
+      showMessage(
+        error.message
+      );
+
+      button.disabled = false;
+
+      button.textContent =
+        "إنشاء الحساب";
+    }
+
+  }
 );
-
-button.disabled=true;
-
-button.textContent=
-"جارٍ إنشاء الحساب...";
-
-try{
-
-const response =
-await fetch("/api/register",{
-
-method:"POST",
-
-headers:{
-"Content-Type":
-"application/json"
-},
-
-credentials:"same-origin",
-
-body:JSON.stringify({
-
-name:
-document.getElementById(
-"registerName"
-).value.trim(),
-
-phone:
-document.getElementById(
-"registerPhone"
-).value.trim(),
-
-email:
-document.getElementById(
-"registerEmail"
-).value.trim(),
-
-password:
-document.getElementById(
-"registerPassword"
-).value
-
-})
-
-});
-
-const data =
-await response.json();
-
-if(!response.ok || !data.ok){
-throw new Error(
-data.error ||
-"تعذر إنشاء الحساب"
-);
-}
-
-location.href="/dashboard";
-
-}catch(error){
-
-showMessage(error.message);
-
-button.disabled=false;
-
-button.textContent=
-"إنشاء الحساب";
-
-}
-
-});
 
 </script>
 
 </body>
+
 </html>
 `;
 }
@@ -2100,7 +2473,6 @@ onclick="logout()">
 
 </header>
 
-
 <main>
 
 <section class="welcome">
@@ -2115,30 +2487,42 @@ onclick="logout()">
 
 </section>
 
-
 <div class="grid">
-
 
 <section class="card">
 
-<h2>🏪 بيانات المطعم</h2>
+<h2>
+🏪 بيانات المطعم
+</h2>
 
-<label>اسم المطعم</label>
+<label>
+اسم المطعم
+</label>
 
-<input id="restaurantName">
+<input
+id="restaurantName">
 
-<label>الوصف</label>
+<label>
+الوصف
+</label>
 
 <textarea
-id="restaurantDescription"></textarea>
+id="restaurantDescription">
+</textarea>
 
-<label>رقم الهاتف</label>
+<label>
+رقم الهاتف
+</label>
 
-<input id="restaurantPhone">
+<input
+id="restaurantPhone">
 
-<label>العنوان</label>
+<label>
+العنوان
+</label>
 
-<input id="restaurantAddress">
+<input
+id="restaurantAddress">
 
 <button
 class="save"
@@ -2156,7 +2540,9 @@ class="small">
 
 <section class="card">
 
-<h2>🔗 رابط المنيو</h2>
+<h2>
+🔗 رابط المنيو
+</h2>
 
 <p class="small">
 ده الرابط الذي سيشاهده العملاء.
@@ -2174,7 +2560,9 @@ target="_blank">
 
 <section class="card">
 
-<h2>📂 أقسام المنيو</h2>
+<h2>
+📂 أقسام المنيو
+</h2>
 
 <input
 id="categoryName"
@@ -2186,22 +2574,30 @@ onclick="addCategory()">
 + إضافة قسم
 </button>
 
-<div id="categories"></div>
+<div
+id="categories">
+</div>
 
 </section>
 
 
 <section class="card">
 
-<h2>🍽️ إضافة صنف</h2>
+<h2>
+🍽️ إضافة صنف
+</h2>
 
-<label>اسم الصنف</label>
+<label>
+اسم الصنف
+</label>
 
 <input
 id="itemName"
 placeholder="مثال: برجر لحم">
 
-<label>السعر</label>
+<label>
+السعر
+</label>
 
 <input
 id="itemPrice"
@@ -2209,21 +2605,30 @@ type="number"
 step="0.01"
 placeholder="150">
 
-<label>القسم</label>
+<label>
+القسم
+</label>
 
 <select id="itemCategory">
+
 <option value="">
 بدون قسم
 </option>
+
 </select>
 
-<label>الوصف</label>
+<label>
+الوصف
+</label>
 
 <textarea
 id="itemDescription"
-placeholder="وصف الصنف"></textarea>
+placeholder="وصف الصنف">
+</textarea>
 
-<label>رابط الصورة</label>
+<label>
+رابط الصورة
+</label>
 
 <input
 id="itemImage"
@@ -2235,7 +2640,8 @@ onclick="addItem()">
 إضافة الصنف
 </button>
 
-<div id="itemMessage"
+<div
+id="itemMessage"
 class="small">
 </div>
 
@@ -2244,7 +2650,9 @@ class="small">
 
 <section class="card full">
 
-<h2>📋 أصناف المنيو</h2>
+<h2>
+📋 أصناف المنيو
+</h2>
 
 <div id="items">
 جاري التحميل...
@@ -2256,578 +2664,710 @@ class="small">
 
 </main>
 
-
 <script>
 
-let restaurant=null;
-let categories=[];
-let items=[];
+let restaurant = null;
+let categories = [];
+let items = [];
 
 
-async function api(url,options={}){
+async function api(
+  url,
+  options = {}
+){
 
-const response =
-await fetch(url,{
-...options,
-credentials:"same-origin",
-headers:{
-"Content-Type":
-"application/json",
-...(options.headers||{})
-}
-});
+  const response =
+    await fetch(
+      url,
+      {
+        ...options,
 
-const data =
-await response.json();
+        credentials:
+          "same-origin",
 
-if(!response.ok || !data.ok){
-throw new Error(
-data.error ||
-"حدث خطأ"
-);
-}
+        headers:{
+          "Content-Type":
+            "application/json",
 
-return data;
+          ...(options.headers || {})
+        }
+      }
+    );
+
+  const data =
+    await response.json();
+
+  if (
+    !response.ok ||
+    !data.ok
+  ) {
+    throw new Error(
+      data.error ||
+      "حدث خطأ"
+    );
+  }
+
+  return data;
 }
 
 
 async function load(){
 
-try{
+  try{
 
-const me =
-await api("/api/me");
+    const me =
+      await api(
+        "/api/me"
+      );
 
-document.getElementById(
-"welcome"
-).textContent =
-"أهلاً بك يا " +
-me.user.name +
-" 👋";
-
-
-const restaurantData =
-await api("/api/restaurant");
-
-restaurant =
-restaurantData.restaurant;
+    document.getElementById(
+      "welcome"
+    ).textContent =
+      "أهلاً بك يا " +
+      me.user.name +
+      " 👋";
 
 
-document.getElementById(
-"restaurantName"
-).value =
-restaurant.name || "";
+    const restaurantData =
+      await api(
+        "/api/restaurant"
+      );
 
-document.getElementById(
-"restaurantDescription"
-).value =
-restaurant.description || "";
-
-document.getElementById(
-"restaurantPhone"
-).value =
-restaurant.phone || "";
-
-document.getElementById(
-"restaurantAddress"
-).value =
-restaurant.address || "";
+    restaurant =
+      restaurantData.restaurant;
 
 
-const link =
-location.origin +
-"/menu/" +
-restaurant.slug;
-
-const menuLink =
-document.getElementById(
-"menuLink"
-);
-
-menuLink.href=link;
-menuLink.textContent=link;
+    document.getElementById(
+      "restaurantName"
+    ).value =
+      restaurant.name || "";
 
 
-await loadCategories();
-await loadItems();
+    document.getElementById(
+      "restaurantDescription"
+    ).value =
+      restaurant.description || "";
 
-}catch(error){
 
-location.href="/login";
+    document.getElementById(
+      "restaurantPhone"
+    ).value =
+      restaurant.phone || "";
 
-}
+
+    document.getElementById(
+      "restaurantAddress"
+    ).value =
+      restaurant.address || "";
+
+
+    const link =
+      location.origin +
+      "/menu/" +
+      restaurant.slug;
+
+
+    const menuLink =
+      document.getElementById(
+        "menuLink"
+      );
+
+    menuLink.href = link;
+
+    menuLink.textContent =
+      link;
+
+
+    await loadCategories();
+    await loadItems();
+
+  }catch(error){
+
+    location.href =
+      "/login";
+
+  }
 
 }
 
 
 async function saveRestaurant(){
 
-try{
+  try{
 
-await api(
-"/api/restaurant",
-{
-method:"PUT",
-body:JSON.stringify({
+    await api(
+      "/api/restaurant",
+      {
+        method:"PUT",
 
-name:
-document.getElementById(
-"restaurantName"
-).value,
+        body:
+          JSON.stringify({
 
-description:
-document.getElementById(
-"restaurantDescription"
-).value,
+            name:
+              document.getElementById(
+                "restaurantName"
+              ).value,
 
-phone:
-document.getElementById(
-"restaurantPhone"
-).value,
+            description:
+              document.getElementById(
+                "restaurantDescription"
+              ).value,
 
-address:
-document.getElementById(
-"restaurantAddress"
-).value
+            phone:
+              document.getElementById(
+                "restaurantPhone"
+              ).value,
 
-})
-}
-);
+            address:
+              document.getElementById(
+                "restaurantAddress"
+              ).value
 
-document.getElementById(
-"restaurantMessage"
-).textContent =
-"تم حفظ البيانات ✓";
+          })
+      }
+    );
 
-}catch(error){
+    document.getElementById(
+      "restaurantMessage"
+    ).textContent =
+      "تم حفظ البيانات ✓";
 
-document.getElementById(
-"restaurantMessage"
-).textContent =
-error.message;
+  }catch(error){
 
-}
+    document.getElementById(
+      "restaurantMessage"
+    ).textContent =
+      error.message;
+
+  }
 
 }
 
 
 async function loadCategories(){
 
-const data =
-await api("/api/categories");
+  const data =
+    await api(
+      "/api/categories"
+    );
 
-categories=data.categories;
+  categories =
+    data.categories;
 
-renderCategories();
+  renderCategories();
 
 }
 
 
 function renderCategories(){
 
-const box =
-document.getElementById(
-"categories"
-);
+  const box =
+    document.getElementById(
+      "categories"
+    );
 
-const select =
-document.getElementById(
-"itemCategory"
-);
+  const select =
+    document.getElementById(
+      "itemCategory"
+    );
 
-box.innerHTML="";
+  box.innerHTML = "";
 
-select.innerHTML =
-'<option value="">بدون قسم</option>';
-
-categories.forEach(category=>{
-
-const row =
-document.createElement("div");
-
-row.className=
-"category-row";
-
-row.innerHTML=`
-
-<strong>
-${escapeHtml(category.name)}
-</strong>
-
-<button
-class="danger"
-style="float:left"
-onclick="removeCategory('${category.id}')">
-حذف
-</button>
-
-`;
-
-box.appendChild(row);
+  select.innerHTML =
+    '<option value="">بدون قسم</option>';
 
 
-const option =
-document.createElement("option");
+  categories.forEach(
+    category => {
 
-option.value=category.id;
-option.textContent=category.name;
+      const row =
+        document.createElement(
+          "div"
+        );
 
-select.appendChild(option);
+      row.className =
+        "category-row";
 
-});
 
-if(!categories.length){
+      row.innerHTML =
+        '<strong>' +
+        escapeHtml(
+          category.name
+        ) +
+        '</strong>' +
 
-box.innerHTML =
-'<div class="small">لم تتم إضافة أقسام بعد.</div>';
+        '<button ' +
+        'class="danger" ' +
+        'style="float:left" ' +
+        'onclick="removeCategory(\'' +
+        category.id +
+        '\')">' +
+        'حذف' +
+        '</button>';
 
-}
+
+      box.appendChild(row);
+
+
+      const option =
+        document.createElement(
+          "option"
+        );
+
+      option.value =
+        category.id;
+
+      option.textContent =
+        category.name;
+
+      select.appendChild(
+        option
+      );
+
+    }
+  );
+
+
+  if (!categories.length) {
+
+    box.innerHTML =
+      '<div class="small">' +
+      'لم تتم إضافة أقسام بعد.' +
+      '</div>';
+
+  }
 
 }
 
 
 async function addCategory(){
 
-const name =
-document.getElementById(
-"categoryName"
-).value.trim();
+  const name =
+    document.getElementById(
+      "categoryName"
+    ).value.trim();
 
-if(!name)
-return;
+  if (!name) {
+    return;
+  }
 
-try{
+  try{
 
-await api(
-"/api/categories",
-{
-method:"POST",
-body:JSON.stringify({
-name
-})
-}
-);
+    await api(
+      "/api/categories",
+      {
+        method:"POST",
 
-document.getElementById(
-"categoryName"
-).value="";
+        body:
+          JSON.stringify({
+            name
+          })
+      }
+    );
 
-await loadCategories();
+    document.getElementById(
+      "categoryName"
+    ).value = "";
 
-}catch(error){
+    await loadCategories();
 
-alert(error.message);
+  }catch(error){
 
-}
+    alert(
+      error.message
+    );
+
+  }
 
 }
 
 
 async function removeCategory(id){
 
-if(!confirm(
-"هل تريد حذف هذا القسم؟"
-))
-return;
+  if (
+    !confirm(
+      "هل تريد حذف هذا القسم؟"
+    )
+  ) {
+    return;
+  }
 
-try{
+  try{
 
-await api(
-"/api/categories/"+id,
-{
-method:"DELETE"
-}
-);
+    await api(
+      "/api/categories/" +
+      id,
+      {
+        method:"DELETE"
+      }
+    );
 
-await loadCategories();
-await loadItems();
+    await loadCategories();
+    await loadItems();
 
-}catch(error){
+  }catch(error){
 
-alert(error.message);
+    alert(
+      error.message
+    );
 
-}
+  }
 
 }
 
 
 async function loadItems(){
 
-const data =
-await api("/api/items");
+  const data =
+    await api(
+      "/api/items"
+    );
 
-items=data.items;
+  items =
+    data.items;
 
-renderItems();
+  renderItems();
 
 }
 
 
 function renderItems(){
 
-const box =
-document.getElementById("items");
+  const box =
+    document.getElementById(
+      "items"
+    );
 
-box.innerHTML="";
+  box.innerHTML = "";
 
-if(!items.length){
 
-box.innerHTML =
-'<div class="small">لم تتم إضافة أصناف بعد.</div>';
+  if (!items.length) {
 
-return;
+    box.innerHTML =
+      '<div class="small">' +
+      'لم تتم إضافة أصناف بعد.' +
+      '</div>';
 
-}
+    return;
+  }
 
-items.forEach(item=>{
 
-const row =
-document.createElement("div");
+  items.forEach(
+    item => {
 
-row.className="item-row";
+      const row =
+        document.createElement(
+          "div"
+        );
 
-row.innerHTML=`
+      row.className =
+        "item-row";
 
-<div>
 
-<strong>
-${escapeHtml(item.name)}
-</strong>
+      const categoryText =
+        item.category_name
+          ? " — " +
+            escapeHtml(
+              item.category_name
+            )
+          : "";
 
-<div class="small">
-${item.price} جنيه
-${item.category_name
-? " — "+escapeHtml(item.category_name)
-: ""}
-</div>
 
-<div class="small">
-${escapeHtml(item.description||"")}
-</div>
+      row.innerHTML =
+        '<div>' +
 
-</div>
+          '<strong>' +
+            escapeHtml(
+              item.name
+            ) +
+          '</strong>' +
 
-<div>
+          '<div class="small">' +
+            item.price +
+            ' جنيه' +
+            categoryText +
+          '</div>' +
 
-<button
-class="danger"
-onclick="editItem('${item.id}')">
-تعديل
-</button>
+          '<div class="small">' +
+            escapeHtml(
+              item.description || ""
+            ) +
+          '</div>' +
 
-<button
-class="danger"
-onclick="removeItem('${item.id}')">
-حذف
-</button>
+        '</div>' +
 
-</div>
+        '<div>' +
 
-`;
+          '<button ' +
+          'class="danger" ' +
+          'onclick="editItem(\'' +
+          item.id +
+          '\')">' +
+          'تعديل' +
+          '</button>' +
 
-box.appendChild(row);
+          '<button ' +
+          'class="danger" ' +
+          'onclick="removeItem(\'' +
+          item.id +
+          '\')">' +
+          'حذف' +
+          '</button>' +
 
-});
+        '</div>';
+
+
+      box.appendChild(row);
+
+    }
+  );
 
 }
 
 
 async function addItem(){
 
-try{
+  try{
 
-const name =
-document.getElementById(
-"itemName"
-).value.trim();
+    const name =
+      document.getElementById(
+        "itemName"
+      ).value.trim();
 
-const price =
-document.getElementById(
-"itemPrice"
-).value;
+    const price =
+      document.getElementById(
+        "itemPrice"
+      ).value;
 
-const category_id =
-document.getElementById(
-"itemCategory"
-).value;
+    const category_id =
+      document.getElementById(
+        "itemCategory"
+      ).value;
 
-const description =
-document.getElementById(
-"itemDescription"
-).value;
+    const description =
+      document.getElementById(
+        "itemDescription"
+      ).value;
 
-const image =
-document.getElementById(
-"itemImage"
-).value;
+    const image =
+      document.getElementById(
+        "itemImage"
+      ).value;
 
-await api(
-"/api/items",
-{
-method:"POST",
-body:JSON.stringify({
 
-name,
-price,
-category_id,
-description,
-image
+    await api(
+      "/api/items",
+      {
+        method:"POST",
 
-})
-}
-);
+        body:
+          JSON.stringify({
 
-document.getElementById(
-"itemName"
-).value="";
+            name,
+            price,
+            category_id,
+            description,
+            image
 
-document.getElementById(
-"itemPrice"
-).value="";
+          })
+      }
+    );
 
-document.getElementById(
-"itemDescription"
-).value="";
 
-document.getElementById(
-"itemImage"
-).value="";
+    document.getElementById(
+      "itemName"
+    ).value = "";
 
-document.getElementById(
-"itemMessage"
-).textContent =
-"تم إضافة الصنف ✓";
+    document.getElementById(
+      "itemPrice"
+    ).value = "";
 
-await loadItems();
+    document.getElementById(
+      "itemDescription"
+    ).value = "";
 
-}catch(error){
+    document.getElementById(
+      "itemImage"
+    ).value = "";
 
-document.getElementById(
-"itemMessage"
-).textContent =
-error.message;
 
-}
+    document.getElementById(
+      "itemMessage"
+    ).textContent =
+      "تم إضافة الصنف ✓";
+
+
+    await loadItems();
+
+  }catch(error){
+
+    document.getElementById(
+      "itemMessage"
+    ).textContent =
+      error.message;
+
+  }
 
 }
 
 
 async function editItem(id){
 
-const item =
-items.find(x=>x.id===id);
+  const item =
+    items.find(
+      x => x.id === id
+    );
 
-if(!item)
-return;
+  if (!item) {
+    return;
+  }
 
-const name =
-prompt(
-"اسم الصنف:",
-item.name
-);
 
-if(name===null)
-return;
+  const name =
+    prompt(
+      "اسم الصنف:",
+      item.name
+    );
 
-const price =
-prompt(
-"السعر:",
-item.price
-);
+  if (name === null) {
+    return;
+  }
 
-if(price===null)
-return;
 
-const description =
-prompt(
-"الوصف:",
-item.description || ""
-);
+  const price =
+    prompt(
+      "السعر:",
+      item.price
+    );
 
-if(description===null)
-return;
+  if (price === null) {
+    return;
+  }
 
-try{
 
-await api(
-"/api/items/"+id,
-{
-method:"PUT",
-body:JSON.stringify({
+  const description =
+    prompt(
+      "الوصف:",
+      item.description || ""
+    );
 
-name,
-price,
-description,
-category_id:
-item.category_id || "",
-image:
-item.image || ""
+  if (description === null) {
+    return;
+  }
 
-})
-}
-);
 
-await loadItems();
+  try{
 
-}catch(error){
+    await api(
+      "/api/items/" +
+      id,
+      {
+        method:"PUT",
 
-alert(error.message);
+        body:
+          JSON.stringify({
 
-}
+            name,
+            price,
+            description,
+
+            category_id:
+              item.category_id || "",
+
+            image:
+              item.image || ""
+
+          })
+      }
+    );
+
+    await loadItems();
+
+  }catch(error){
+
+    alert(
+      error.message
+    );
+
+  }
 
 }
 
 
 async function removeItem(id){
 
-if(!confirm(
-"هل تريد حذف هذا الصنف؟"
-))
-return;
+  if (
+    !confirm(
+      "هل تريد حذف هذا الصنف؟"
+    )
+  ) {
+    return;
+  }
 
-try{
+  try{
 
-await api(
-"/api/items/"+id,
-{
-method:"DELETE"
-}
-);
+    await api(
+      "/api/items/" +
+      id,
+      {
+        method:"DELETE"
+      }
+    );
 
-await loadItems();
+    await loadItems();
 
-}catch(error){
+  }catch(error){
 
-alert(error.message);
+    alert(
+      error.message
+    );
 
-}
+  }
 
 }
 
 
 async function logout(){
 
-await fetch(
-"/api/logout",
-{
-method:"POST",
-credentials:"same-origin"
-}
-);
+  await fetch(
+    "/api/logout",
+    {
+      method:"POST",
+      credentials:
+        "same-origin"
+    }
+  );
 
-location.href="/";
+  location.href = "/";
 
 }
 
 
 function escapeHtml(value){
 
-return String(value||"")
-.replaceAll("&","&amp;")
-.replaceAll("<","&lt;")
-.replaceAll(">","&gt;")
-.replaceAll('"',"&quot;")
-.replaceAll("'","&#039;");
+  return String(
+    value || ""
+  )
+  .replaceAll(
+    "&",
+    "&amp;"
+  )
+  .replaceAll(
+    "<",
+    "&lt;"
+  )
+  .replaceAll(
+    ">",
+    "&gt;"
+  )
+  .replaceAll(
+    '"',
+    "&quot;"
+  )
+  .replaceAll(
+    "'",
+    "&#039;"
+  );
 
 }
 
@@ -2837,6 +3377,7 @@ load();
 </script>
 
 </body>
+
 </html>
 `;
 }
@@ -2852,333 +3393,412 @@ function publicMenuPage(
   items
 ) {
 
-  const categorySections =
-    categories.map(category => {
+  let sections = "";
 
-      const categoryItems =
-        items.filter(
-          item =>
-            item.category_id === category.id
-        );
 
-      if (!categoryItems.length)
-        return "";
+  for (
+    const category of categories
+  ) {
 
-      return `
-      <section class="category">
+    const categoryItems =
+      items.filter(
+        item =>
+          item.category_id ===
+          category.id
+      );
 
-        <h2>
-          ${escapeHtml(category.name)}
-        </h2>
 
-        <div class="items">
+    if (!categoryItems.length) {
+      continue;
+    }
 
-        ${categoryItems.map(item => `
 
-          <article class="item">
+    let itemHtml = "";
 
-            ${
-              item.image
-              ? `
-              <img
-                src="${escapeHtml(item.image)}"
-                alt="${escapeHtml(item.name)}"
-              >
-              `
-              : ""
-            }
 
-            <div class="item-info">
+    for (
+      const item of categoryItems
+    ) {
 
-              <div class="item-top">
+      let imageHtml = "";
 
-                <h3>
-                  ${escapeHtml(item.name)}
-                </h3>
 
-                <strong>
-                  ${Number(item.price).toFixed(2)}
-                  ج
-                </strong>
+      if (item.image) {
 
-              </div>
+        imageHtml =
+          '<img src="' +
+          escapeHtml(
+            item.image
+          ) +
+          '" alt="' +
+          escapeHtml(
+            item.name
+          ) +
+          '">';
 
-              ${
-                item.description
-                ? `
-                <p>
-                  ${escapeHtml(item.description)}
-                </p>
-                `
-                : ""
-              }
+      }
 
-            </div>
 
-          </article>
+      let descriptionHtml = "";
 
-        `).join("")}
 
-        </div>
+      if (item.description) {
 
-      </section>
-      `;
+        descriptionHtml =
+          '<p>' +
+          escapeHtml(
+            item.description
+          ) +
+          '</p>';
 
-    }).join("");
+      }
+
+
+      itemHtml +=
+        '<article class="item">' +
+
+          imageHtml +
+
+          '<div class="item-info">' +
+
+            '<div class="item-top">' +
+
+              '<h3>' +
+                escapeHtml(
+                  item.name
+                ) +
+              '</h3>' +
+
+              '<strong>' +
+                Number(
+                  item.price
+                ).toFixed(2) +
+                ' ج' +
+              '</strong>' +
+
+            '</div>' +
+
+            descriptionHtml +
+
+          '</div>' +
+
+        '</article>';
+
+    }
+
+
+    sections +=
+      '<section class="category">' +
+
+        '<h2>' +
+          escapeHtml(
+            category.name
+          ) +
+        '</h2>' +
+
+        '<div class="items">' +
+          itemHtml +
+        '</div>' +
+
+      '</section>';
+
+  }
 
 
   const uncategorized =
     items.filter(
-      item => !item.category_id
+      item =>
+        !item.category_id
     );
 
 
-  return `
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+  if (uncategorized.length) {
 
-<head>
+    let otherItems = "";
 
-<meta charset="UTF-8">
 
-<meta name="viewport"
-content="width=device-width,initial-scale=1">
+    for (
+      const item of uncategorized
+    ) {
 
-<title>
-${escapeHtml(restaurant.name)}
-| لمسة
-</title>
+      let imageHtml = "";
 
-<style>
 
-*{
-box-sizing:border-box;
+      if (item.image) {
+
+        imageHtml =
+          '<img src="' +
+          escapeHtml(
+            item.image
+          ) +
+          '" alt="' +
+          escapeHtml(
+            item.name
+          ) +
+          '">';
+
+      }
+
+
+      let descriptionHtml = "";
+
+
+      if (item.description) {
+
+        descriptionHtml =
+          '<p>' +
+          escapeHtml(
+            item.description
+          ) +
+          '</p>';
+
+      }
+
+
+      otherItems +=
+        '<article class="item">' +
+
+          imageHtml +
+
+          '<div class="item-info">' +
+
+            '<div class="item-top">' +
+
+              '<h3>' +
+                escapeHtml(
+                  item.name
+                ) +
+              '</h3>' +
+
+              '<strong>' +
+                Number(
+                  item.price
+                ).toFixed(2) +
+                ' ج' +
+              '</strong>' +
+
+            '</div>' +
+
+            descriptionHtml +
+
+          '</div>' +
+
+        '</article>';
+
+    }
+
+
+    sections +=
+      '<section class="category">' +
+
+        '<h2>أصناف أخرى</h2>' +
+
+        '<div class="items">' +
+          otherItems +
+        '</div>' +
+
+      '</section>';
+
+  }
+
+
+  let restaurantDescription = "";
+
+
+  if (restaurant.description) {
+
+    restaurantDescription =
+      '<p>' +
+      escapeHtml(
+        restaurant.description
+      ) +
+      '</p>';
+
+  }
+
+
+  return (
+
+    '<!DOCTYPE html>' +
+
+    '<html lang="ar" dir="rtl">' +
+
+    '<head>' +
+
+    '<meta charset="UTF-8">' +
+
+    '<meta name="viewport" ' +
+    'content="width=device-width,initial-scale=1">' +
+
+    '<title>' +
+      escapeHtml(
+        restaurant.name
+      ) +
+      ' | لمسة' +
+    '</title>' +
+
+    '<style>' +
+
+    '*{box-sizing:border-box}' +
+
+    'body{' +
+      'margin:0;' +
+      'font-family:Arial,sans-serif;' +
+      'background:#f7f5f1;' +
+      'color:#222;' +
+    '}' +
+
+    '.hero{' +
+      'background:#222;' +
+      'color:white;' +
+      'text-align:center;' +
+      'padding:55px 20px;' +
+    '}' +
+
+    '.logo{' +
+      'font-size:34px;' +
+      'font-weight:900;' +
+      'margin-bottom:15px;' +
+    '}' +
+
+    '.hero h1{' +
+      'margin:0;' +
+      'font-size:38px;' +
+    '}' +
+
+    '.hero p{' +
+      'color:#ddd;' +
+      'max-width:650px;' +
+      'margin:15px auto 0;' +
+      'line-height:1.8;' +
+    '}' +
+
+    '.menu{' +
+      'max-width:900px;' +
+      'margin:auto;' +
+      'padding:25px 16px 60px;' +
+    '}' +
+
+    '.category{' +
+      'margin-bottom:35px;' +
+    '}' +
+
+    '.category h2{' +
+      'font-size:25px;' +
+      'margin-bottom:15px;' +
+    '}' +
+
+    '.items{' +
+      'display:grid;' +
+      'gap:12px;' +
+    '}' +
+
+    '.item{' +
+      'background:white;' +
+      'border:1px solid #e9e5de;' +
+      'border-radius:16px;' +
+      'padding:15px;' +
+      'display:flex;' +
+      'gap:15px;' +
+    '}' +
+
+    '.item img{' +
+      'width:90px;' +
+      'height:90px;' +
+      'object-fit:cover;' +
+      'border-radius:12px;' +
+    '}' +
+
+    '.item-info{' +
+      'flex:1;' +
+    '}' +
+
+    '.item-top{' +
+      'display:flex;' +
+      'align-items:flex-start;' +
+      'justify-content:space-between;' +
+      'gap:15px;' +
+    '}' +
+
+    '.item h3{' +
+      'margin:0;' +
+      'font-size:18px;' +
+    '}' +
+
+    '.item strong{' +
+      'white-space:nowrap;' +
+    '}' +
+
+    '.item p{' +
+      'color:#777;' +
+      'line-height:1.6;' +
+      'margin:8px 0 0;' +
+    '}' +
+
+    '.footer{' +
+      'text-align:center;' +
+      'padding:25px;' +
+      'color:#888;' +
+      'font-size:13px;' +
+    '}' +
+
+    '@media(max-width:600px){' +
+
+      '.hero{' +
+        'padding:40px 18px;' +
+      '}' +
+
+      '.hero h1{' +
+        'font-size:30px;' +
+      '}' +
+
+      '.item img{' +
+        'width:75px;' +
+        'height:75px;' +
+      '}' +
+
+    '}' +
+
+    '</style>' +
+
+    '</head>' +
+
+    '<body>' +
+
+    '<header class="hero">' +
+
+      '<div class="logo">' +
+        'لمسة' +
+      '</div>' +
+
+      '<h1>' +
+        escapeHtml(
+          restaurant.name
+        ) +
+      '</h1>' +
+
+      restaurantDescription +
+
+    '</header>' +
+
+    '<main class="menu">' +
+
+      sections +
+
+    '</main>' +
+
+    '<div class="footer">' +
+      'Powered by LAMSA — لمسة' +
+    '</div>' +
+
+    '</body>' +
+
+    '</html>'
+
+  );
 }
 
-body{
-margin:0;
-font-family:Arial,sans-serif;
-background:#f7f5f1;
-color:#222;
-}
 
-.hero{
-background:#222;
-color:white;
-text-align:center;
-padding:55px 20px;
-}
-
-.logo{
-font-size:34px;
-font-weight:900;
-margin-bottom:15px;
-}
-
-.hero h1{
-margin:0;
-font-size:38px;
-}
-
-.hero p{
-color:#ddd;
-max-width:650px;
-margin:15px auto 0;
-line-height:1.8;
-}
-
-.menu{
-max-width:900px;
-margin:auto;
-padding:25px 16px 60px;
-}
-
-.category{
-margin-bottom:35px;
-}
-
-.category h2{
-font-size:25px;
-margin-bottom:15px;
-}
-
-.items{
-display:grid;
-gap:12px;
-}
-
-.item{
-background:white;
-border:1px solid #e9e5de;
-border-radius:16px;
-padding:15px;
-display:flex;
-gap:15px;
-}
-
-.item img{
-width:90px;
-height:90px;
-object-fit:cover;
-border-radius:12px;
-}
-
-.item-info{
-flex:1;
-}
-
-.item-top{
-display:flex;
-align-items:flex-start;
-justify-content:space-between;
-gap:15px;
-}
-
-.item h3{
-margin:0;
-font-size:18px;
-}
-
-.item strong{
-white-space:nowrap;
-}
-
-.item p{
-color:#777;
-line-height:1.6;
-margin:8px 0 0;
-}
-
-.footer{
-text-align:center;
-padding:25px;
-color:#888;
-font-size:13px;
-}
-
-@media(max-width:600px){
-
-.hero{
-padding:40px 18px;
-}
-
-.hero h1{
-font-size:30px;
-}
-
-.item img{
-width:75px;
-height:75px;
-}
-
-}
-
-</style>
-
-</head>
-
-<body>
-
-<header class="hero">
-
-<div class="logo">
-لمسة
-</div>
-
-<h1>
-${escapeHtml(restaurant.name)}
-</h1>
-
-${
-restaurant.description
-? `
-<p>
-${escapeHtml(restaurant.description)}
-</p>
-`
-: ""
-}
-
-</header>
-
-<main class="menu">
-
-${categorySections}
-
-${
-uncategorized.length
-? `
-<section class="category">
-
-<h2>أصناف أخرى</h2>
-
-<div class="items">
-
-${uncategorized.map(item=>`
-
-<article class="item">
-
-${
-item.image
-? `
-<img
-src="${escapeHtml(item.image)}"
-alt="${escapeHtml(item.name)}">
-`
-: ""
-}
-
-<div class="item-info">
-
-<div class="item-top">
-
-<h3>
-${escapeHtml(item.name)}
-</h3>
-
-<strong>
-${Number(item.price).toFixed(2)}
-ج
-</strong>
-
-</div>
-
-${
-item.description
-? `<p>${escapeHtml(item.description)}</p>`
-: ""
-}
-
-</div>
-
-</article>
-
-`).join("")}
-
-</div>
-
-</section>
-`
-: ""
-}
-
-</main>
-
-<div class="footer">
-Powered by LAMSA — لمسة
-</div>
-
-</body>
-</html>
-`;
-}
-
-
-function escapeHtml(value) {
-  return String(value || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
+// =========================
+// END
+// =========================
