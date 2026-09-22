@@ -1,369 +1,3023 @@
-const COOKIE='lamsa_session';
-const SESSION_DAYS=30;
-const FREE_DAYS=30;
-const SUPPORT_PHONE='011111369788';
-const DESIGNS=[{id:'design-01',name:'ليالي 01',tone:'hsl(37 65% 48%)'},{id:'design-02',name:'كافيه 02',tone:'hsl(74 65% 48%)'},{id:'design-03',name:'رويال 03',tone:'hsl(111 65% 48%)'},{id:'design-04',name:'بسيط 04',tone:'hsl(148 65% 48%)'},{id:'design-05',name:'مودرن 05',tone:'hsl(185 65% 48%)'},{id:'design-06',name:'شرقي 06',tone:'hsl(222 65% 48%)'},{id:'design-07',name:'فاخر 07',tone:'hsl(259 65% 48%)'},{id:'design-08',name:'أبيض 08',tone:'hsl(296 65% 48%)'},{id:'design-09',name:'داكن 09',tone:'hsl(333 65% 48%)'},{id:'design-10',name:'ذهبي 10',tone:'hsl(10 65% 48%)'},{id:'design-11',name:'بحري 11',tone:'hsl(47 65% 48%)'},{id:'design-12',name:'حديقة 12',tone:'hsl(84 65% 48%)'},{id:'design-13',name:'ليالي 13',tone:'hsl(121 65% 48%)'},{id:'design-14',name:'كافيه 14',tone:'hsl(158 65% 48%)'},{id:'design-15',name:'رويال 15',tone:'hsl(195 65% 48%)'},{id:'design-16',name:'بسيط 16',tone:'hsl(232 65% 48%)'},{id:'design-17',name:'مودرن 17',tone:'hsl(269 65% 48%)'},{id:'design-18',name:'شرقي 18',tone:'hsl(306 65% 48%)'},{id:'design-19',name:'فاخر 19',tone:'hsl(343 65% 48%)'},{id:'design-20',name:'أبيض 20',tone:'hsl(20 65% 48%)'},{id:'design-21',name:'داكن 21',tone:'hsl(57 65% 48%)'},{id:'design-22',name:'ذهبي 22',tone:'hsl(94 65% 48%)'},{id:'design-23',name:'بحري 23',tone:'hsl(131 65% 48%)'},{id:'design-24',name:'حديقة 24',tone:'hsl(168 65% 48%)'},{id:'design-25',name:'ليالي 25',tone:'hsl(205 65% 48%)'},{id:'design-26',name:'كافيه 26',tone:'hsl(242 65% 48%)'},{id:'design-27',name:'رويال 27',tone:'hsl(279 65% 48%)'},{id:'design-28',name:'بسيط 28',tone:'hsl(316 65% 48%)'},{id:'design-29',name:'مودرن 29',tone:'hsl(353 65% 48%)'},{id:'design-30',name:'شرقي 30',tone:'hsl(30 65% 48%)'},{id:'design-31',name:'فاخر 31',tone:'hsl(67 65% 48%)'},{id:'design-32',name:'أبيض 32',tone:'hsl(104 65% 48%)'},{id:'design-33',name:'داكن 33',tone:'hsl(141 65% 48%)'},{id:'design-34',name:'ذهبي 34',tone:'hsl(178 65% 48%)'},{id:'design-35',name:'بحري 35',tone:'hsl(215 65% 48%)'},{id:'design-36',name:'حديقة 36',tone:'hsl(252 65% 48%)'},{id:'design-37',name:'ليالي 37',tone:'hsl(289 65% 48%)'},{id:'design-38',name:'كافيه 38',tone:'hsl(326 65% 48%)'},{id:'design-39',name:'رويال 39',tone:'hsl(3 65% 48%)'},{id:'design-40',name:'بسيط 40',tone:'hsl(40 65% 48%)'},{id:'design-41',name:'مودرن 41',tone:'hsl(77 65% 48%)'},{id:'design-42',name:'شرقي 42',tone:'hsl(114 65% 48%)'},{id:'design-43',name:'فاخر 43',tone:'hsl(151 65% 48%)'},{id:'design-44',name:'أبيض 44',tone:'hsl(188 65% 48%)'},{id:'design-45',name:'داكن 45',tone:'hsl(225 65% 48%)'},{id:'design-46',name:'ذهبي 46',tone:'hsl(262 65% 48%)'},{id:'design-47',name:'بحري 47',tone:'hsl(299 65% 48%)'},{id:'design-48',name:'حديقة 48',tone:'hsl(336 65% 48%)'},{id:'design-49',name:'ليالي 49',tone:'hsl(13 65% 48%)'},{id:'design-50',name:'كافيه 50',tone:'hsl(50 65% 48%)'},{id:'design-51',name:'رويال 51',tone:'hsl(87 65% 48%)'},{id:'design-52',name:'بسيط 52',tone:'hsl(124 65% 48%)'},{id:'design-53',name:'مودرن 53',tone:'hsl(161 65% 48%)'},{id:'design-54',name:'شرقي 54',tone:'hsl(198 65% 48%)'},{id:'design-55',name:'فاخر 55',tone:'hsl(235 65% 48%)'},{id:'design-56',name:'أبيض 56',tone:'hsl(272 65% 48%)'},{id:'design-57',name:'داكن 57',tone:'hsl(309 65% 48%)'},{id:'design-58',name:'ذهبي 58',tone:'hsl(346 65% 48%)'},{id:'design-59',name:'بحري 59',tone:'hsl(23 65% 48%)'},{id:'design-60',name:'حديقة 60',tone:'hsl(60 65% 48%)'}];
+const COOKIE = 'lamsa_session';
+const SESSION_DAYS = 30;
+const FREE_DAYS = 30;
+const SUPPORT_PHONE = '011111369788';
 
-export default {async fetch(request,env){try{
- const u=new URL(request.url), p=u.pathname;
- if(p==='/health') return json({ok:true,service:'LAMSA',time:new Date().toISOString()});
- if(request.method==='OPTIONS') return new Response(null,{status:204,headers:corsHeaders()});
- if(p==='/api/register'&&request.method==='POST')return register(request,env);
- if(p==='/api/login'&&request.method==='POST')return login(request,env);
- if(p==='/api/logout'&&request.method==='POST')return logout(request,env);
- if(p==='/login')return html(authPage('login'));
-if(p==='/register')return html(authPage('register'));
-if(p==='/dashboard')return html(dashboardPage());
- if(p==='/api/me'&&request.method==='GET')return me(request,env);
- if(p==='/api/site'&&request.method==='GET')return getSite(request,env);
- if(p==='/api/site'&&request.method==='POST')return createSite(request,env);
- if(p==='/api/site'&&request.method==='PUT')return updateSite(request,env);
- if(p==='/api/categories'&&request.method==='POST')return addCategory(request,env);
- if(p==='/api/categories'&&request.method==='DELETE')return deleteCategory(request,env);
- if(p==='/api/items'&&request.method==='POST')return addItem(request,env);
- if(p==='/api/items'&&request.method==='PUT')return updateItem(request,env);
- if(p==='/api/items'&&request.method==='DELETE')return deleteItem(request,env);
- if(p==='/api/admin/claim'&&request.method==='POST')return claimAdmin(request,env);
- if(p==='/api/admin/sites'&&request.method==='GET')return adminSites(request,env);
- if(p==='/api/admin/renew'&&request.method==='POST')return renew(request,env);
- if(p.startsWith('/m/'))return publicMenu(request,env,p.slice(3));
- return html(home());
-}catch(e){return json({error:'حدث خطأ في النظام',detail:e.message},500)}}};
+const DESIGNS = Array.from({ length: 60 }, (_, i) => ({
+  id: `design-${String(i + 1).padStart(2, '0')}`,
+  name: `تصميم ${i + 1}`,
+  tone: ['فاخر', 'عصري', 'هادئ', 'جريء'][i % 4]
+}));
 
-function corsHeaders(){return {'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Methods':'GET,POST,PUT,DELETE,OPTIONS'}}
-function json(x,s=200,extra={}){return new Response(JSON.stringify(x),{status:s,headers:{'content-type':'application/json; charset=utf-8',...corsHeaders(),...extra}})}
-function html(x,s=200,extra={}){return new Response('<!doctype html>'+x,{status:s,headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store',...extra}})}
-const id=()=>crypto.randomUUID();
-const clean=(v,n=500)=>String(v??'').trim().slice(0,n);
-const emailNorm=v=>clean(v,160).toLowerCase();
-function phoneNorm(v){let x=clean(v,30).replace(/[\s\-()]/g,'');if(x.startsWith('+20'))x='0'+x.slice(3);if(x.startsWith('0020'))x='0'+x.slice(4);return x}
-function slug(v){return clean(v,80).toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'-').replace(/^-|-$/g,'')||'site-'+Date.now()}
-function cookie(req){return (req.headers.get('Cookie')||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(COOKIE+'='))?.slice(COOKIE.length+1)||null}
-function setCookie(v,age){return `${COOKIE}=${v}; Max-Age=${age}; Path=/; HttpOnly; Secure; SameSite=Lax`}
-async function hash(p){const salt=crypto.getRandomValues(new Uint8Array(16));const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(p),'PBKDF2',false,['deriveBits']);const b=new Uint8Array(await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:120000,hash:'SHA-256'},k,256));return `${b64(salt)}.${b64(b)}`}
-async function verify(p,stored){try{const [a,b]=stored.split('.'),salt=ub64(a),exp=ub64(b);const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(p),'PBKDF2',false,['deriveBits']);const got=new Uint8Array(await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:120000,hash:'SHA-256'},k,256));return safe(got,exp)}catch{return false}}
-const b64=a=>{let s='';for(const n of a)s+=String.fromCharCode(n);return btoa(s).replaceAll('+','-').replaceAll('/','_').replaceAll('=','')};
-const ub64=s=>{s=s.replaceAll('-','+').replaceAll('_','/');while(s.length%4)s+='=';const r=atob(s);return Uint8Array.from(r,c=>c.charCodeAt(0))};
-function safe(a,b){if(a.length!==b.length)return false;let z=0;for(let i=0;i<a.length;i++)z|=a[i]^b[i];return z===0}
-async function user(req,env){const sid=cookie(req);if(!sid)return null;return env.DB.prepare(`SELECT u.id,u.name,u.email,u.phone,u.role,s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id=? AND s.expires_at>?`).bind(sid,new Date().toISOString()).first()}
-async function session(env,uid){const token=id()+id().replaceAll('-','');const exp=new Date(Date.now()+SESSION_DAYS*864e5).toISOString();await env.DB.prepare('INSERT INTO sessions(id,user_id,expires_at) VALUES(?,?,?)').bind(token,uid,exp).run();return {token,age:SESSION_DAYS*86400}}
-async function register(req,env){const b=await req.json(),name=clean(b.name,80),email=emailNorm(b.email),phone=phoneNorm(b.phone),pass=String(b.password||'');if(name.length<2||!email.includes('@')||phone.length<6||pass.length<8)return json({error:'راجع البيانات، وكلمة المرور 8 أحرف على الأقل.'},400);const exists=await env.DB.prepare('SELECT id FROM users WHERE lower(email)=? OR phone=? LIMIT 1').bind(email,phone).first();if(exists)return json({error:'يوجد حساب بالفعل بنفس البريد أو رقم الهاتف.'},409);const count=await env.DB.prepare(`SELECT COUNT(*) n FROM users`).first();const role=Number(count?.n||0)===0?'admin':'customer';const uid=id();await env.DB.prepare('INSERT INTO users(id,name,email,phone,password_hash,role) VALUES(?,?,?,?,?,?)').bind(uid,name,email,phone,await hash(pass),role).run();const s=await session(env,uid);return json({ok:true,user:{id:uid,name,email,phone,role} ,note:role==='admin'?'تم إنشاء أول حساب كحساب مدير المنصة.':''},200,{'Set-Cookie':setCookie(s.token,s.age)})}
-async function login(req,env){const b=await req.json(),raw=clean(b.login,160),email=emailNorm(raw),phone=phoneNorm(raw),u=await env.DB.prepare('SELECT * FROM users WHERE lower(email)=? OR phone=? LIMIT 1').bind(email,phone).first();if(!u||!(await verify(String(b.password||''),u.password_hash)))return json({error:'بيانات الدخول غير صحيحة.'},401);const s=await session(env,u.id);return json({ok:true,user:{id:u.id,name:u.name,email:u.email,phone:u.phone,role:u.role}},200,{'Set-Cookie':setCookie(s.token,s.age)})}
-async function logout(req,env){const sid=cookie(req);if(sid)await env.DB.prepare('DELETE FROM sessions WHERE id=?').bind(sid).run();return json({ok:true},200,{'Set-Cookie':setCookie('',0)})}
-async function me(req,env){const u=await user(req,env);return json({user:u})}
-async function owner(req,env){const u=await user(req,env);if(!u)return {u:null,s:null,response:json({error:'يجب تسجيل الدخول.'},401)};const s=await env.DB.prepare('SELECT * FROM sites WHERE user_id=? LIMIT 1').bind(u.id).first();return {u,s,response:null}}
-function dates(s){const now=Date.now(),end=new Date(s.subscription_status==='active'&&s.subscription_ends_at?s.subscription_ends_at:s.trial_ends_at).getTime();return {end,days:Math.ceil((end-now)/864e5),expired:end<=now,trial:s.subscription_status!=='active'}}
-async function createSite(req,env){const o=await owner(req,env);if(!o.u)return o.response;const {u,s}=o; if(s)return json({error:'لديك موقع بالفعل في النسخة الحالية.'},409);const b=await req.json(),name=clean(b.name,100);if(!name)return json({error:'اكتب اسم المطعم أو الكافيه.'},400);let sl=slug(name);if(await env.DB.prepare('SELECT id FROM sites WHERE slug=?').bind(sl).first())sl+='-'+Math.random().toString(36).slice(2,6);const trial=new Date(Date.now()+FREE_DAYS*864e5).toISOString(),sid=id();await env.DB.prepare(`INSERT INTO sites(id,user_id,name,slug,template,status,subscription_status,trial_ends_at,phone,address,hours,logo_url) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`).bind(sid,u.id,name,sl,'design-01','active','trial',trial,clean(b.phone,30),clean(b.address,200),clean(b.hours,200),clean(b.logo_url,500)).run();return json({ok:true,slug:sl})}
-async function getSite(req,env){const o=await owner(req,env);if(!o.u)return o.response;const {u,s}=o; if(!s)return json({site:null,categories:[],items:[],designs:DESIGNS.slice(0,5)});const cats=await env.DB.prepare('SELECT * FROM categories WHERE site_id=? ORDER BY sort_order,id').bind(s.id).all();const items=await env.DB.prepare('SELECT * FROM menu_items WHERE site_id=? ORDER BY sort_order,id').bind(s.id).all();const d=dates(s);return json({site:s,categories:cats.results||[],items:items.results||[],expiry:d,designs:d.trial?DESIGNS.slice(0,5):DESIGNS,supportPhone:SUPPORT_PHONE})}
-async function updateSite(req,env){const o=await owner(req,env);if(!o.u)return o.response;const {u,s}=o;if(!s)return json({error:'أنشئ الموقع أولاً.'},404);const b=await req.json(),d=dates(s);if(b.template&&b.template!==s.template&&d.trial)return json({error:'التصاميم الكاملة تظهر بعد انتهاء الـ30 يوم وتجديد الاشتراك.'},403);await env.DB.prepare(`UPDATE sites SET name=?,template=?,phone=?,address=?,hours=?,logo_url=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(clean(b.name,100)||s.name,clean(b.template,40)||s.template,clean(b.phone,30),clean(b.address,200),clean(b.hours,200),clean(b.logo_url,500),s.id).run();return json({ok:true})}
-async function addCategory(req,env){const o=await owner(req,env);if(!o.u)return o.response;const {u,s}=o;if(!s)return json({error:'لا يوجد موقع.'},404);const b=await req.json(),n=clean(b.name,80);if(!n)return json({error:'اسم القسم مطلوب.'},400);await env.DB.prepare('INSERT INTO categories(id,site_id,name,sort_order) VALUES(?,?,?,?)').bind(id(),s.id,n,Date.now()).run();return json({ok:true})}
-async function deleteCategory(req,env){const o=await owner(req,env);if(!o.u)return o.response;const {u,s}=o;const cid=new URL(req.url).searchParams.get('id');await env.DB.prepare('DELETE FROM categories WHERE id=? AND site_id=?').bind(cid,s.id).run();return json({ok:true})}
-async function addItem(req,env){const o=await owner(req,env);if(!o.u)return o.response;const {u,s}=o;if(!s)return json({error:'لا يوجد موقع.'},404);const b=await req.json();if(!clean(b.name,100))return json({error:'اسم الصنف مطلوب.'},400);await env.DB.prepare('INSERT INTO menu_items(id,site_id,category_id,name,description,price,image_url,sort_order,active) VALUES(?,?,?,?,?,?,?,?,1)').bind(id(),s.id,clean(b.category_id,80)||null,clean(b.name,100),clean(b.description,300),Number(b.price)||0,clean(b.image_url,500),Date.now()).run();return json({ok:true})}
-async function updateItem(req,env){const o=await owner(req,env);if(!o.u)return o.response;const {u,s}=o;const b=await req.json();await env.DB.prepare('UPDATE menu_items SET category_id=?,name=?,description=?,price=?,image_url=?,active=? WHERE id=? AND site_id=?').bind(clean(b.category_id,80)||null,clean(b.name,100),clean(b.description,300),Number(b.price)||0,clean(b.image_url,500),b.active?1:0,b.id,s.id).run();return json({ok:true})}
-async function deleteItem(req,env){const o=await owner(req,env);if(!o.u)return o.response;const {u,s}=o;const iid=new URL(req.url).searchParams.get('id');await env.DB.prepare('DELETE FROM menu_items WHERE id=? AND site_id=?').bind(iid,s.id).run();return json({ok:true})}
-async function claimAdmin(req,env){const u=await user(req,env);if(!u)return json({error:'سجل الدخول أولاً.'},401);const a=await env.DB.prepare(`SELECT id FROM users WHERE role='admin' LIMIT 1`).first();if(a)return json({error:'يوجد مدير منصة بالفعل.'},409);await env.DB.prepare(`UPDATE users SET role='admin' WHERE id=?`).bind(u.id).run();return json({ok:true})}
-async function admin(req,env){const u=await user(req,env);if(!u||u.role!=='admin')return null;return u}
-async function adminSites(req,env){const u=await admin(req,env);if(!u)return json({error:'غير مصرح.'},403);const r=await env.DB.prepare(`SELECT s.*,u.name owner_name,u.email owner_email,u.phone owner_phone FROM sites s JOIN users u ON u.id=s.user_id ORDER BY s.created_at DESC`).all();return json({sites:r.results||[]})}
-async function renew(req,env){const u=await admin(req,env);if(!u)return json({error:'غير مصرح.'},403);const b=await req.json(),site=await env.DB.prepare('SELECT * FROM sites WHERE id=?').bind(b.site_id).first();if(!site)return json({error:'الموقع غير موجود.'},404);const days=Number(b.days)===365?365:30;const end=new Date(Date.now()+days*864e5).toISOString();await env.DB.prepare(`UPDATE sites SET subscription_status='active',subscription_ends_at=?,status='active',design_unlocked_at=COALESCE(design_unlocked_at,CURRENT_TIMESTAMP),updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(end,site.id).run();return json({ok:true,ends_at:end,days})}
-async function publicMenu(req,env,sl){const s=await env.DB.prepare('SELECT * FROM sites WHERE slug=?').bind(sl).first();if(!s)return html(`<main class="wrap"><h1>الموقع غير موجود</h1></main>`,404);const d=dates(s);if(s.status!=='active'||d.expired)return html(expiredPage(s),403);const cats=await env.DB.prepare('SELECT * FROM categories WHERE site_id=? ORDER BY sort_order,id').bind(s.id).all(),items=await env.DB.prepare('SELECT * FROM menu_items WHERE site_id=? AND active=1 ORDER BY sort_order,id').bind(s.id).all();return html(menuPage(s,cats.results||[],items.results||[]))}
-function esc(x){return String(x??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
-function base(title,body,extra=''){return `<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} | لمسة</title><style>:root{--ink:#171613;--muted:#746f66;--paper:#f8f5ef;--card:#fffdf9;--line:#e9e3d8;--accent:#b4864d;--accent2:#d5ad78}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Arial,"Tahoma",sans-serif;background:var(--paper);color:var(--ink)}a{text-decoration:none;color:inherit}.wrap{max-width:1100px;margin:auto;padding:24px}.card{background:white;border-radius:22px;padding:22px;margin:16px 0;box-shadow:0 8px 30px #00000010}.btn{border:0;border-radius:14px;padding:12px 18px;cursor:pointer;background:#222;color:#fff}.muted{color:#777}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}input,textarea,select{width:100%;box-sizing:border-box;padding:12px;border:1px solid #ddd;border-radius:12px;margin:6px 0 12px}button{font:inherit}.top{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.danger{background:#8d2f2f}.notice{padding:14px;border-radius:14px;background:#fff1c9}.item{padding:14px 0;border-bottom:1px solid #eee}.price{font-weight:800}.print{position:fixed;bottom:20px;left:20px}.home-shell{overflow:hidden;background:var(--paper)}.site-nav{max-width:1200px;margin:auto;padding:24px 34px;display:flex;align-items:center;justify-content:space-between;gap:24px}.brand{display:flex;align-items:center;gap:10px}.brand-mark{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:var(--ink);color:#fff;font-weight:900;font-size:22px}.brand b{display:block;font-size:19px}.brand small{display:block;color:#9a907f;font-size:9px;letter-spacing:3px;margin-top:2px}.site-nav nav{display:flex;gap:30px;color:#6e675d;font-size:14px}.nav-actions{display:flex;align-items:center;gap:18px;font-size:14px}.login-link{color:#5d574f}.nav-cta,.primary-cta{background:var(--ink);color:#fff;border-radius:14px;padding:13px 20px;font-weight:800}.hero-section{max-width:1200px;margin:auto;min-height:650px;padding:58px 34px 70px;display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:30px}.hero-copy{padding-right:20px}.eyebrow,.section-kicker{color:#a27645;font-size:11px;letter-spacing:2px;font-weight:900}.eyebrow span{display:inline-grid;place-items:center;width:25px;height:25px;border-radius:50%;background:#eee4d4;margin-left:7px}.hero-copy h1{font-size:clamp(48px,6vw,78px);line-height:1.02;letter-spacing:-3px;margin:22px 0 20px}.hero-copy h1 em{font-style:normal;color:#a27645}.hero-copy>p{max-width:560px;color:var(--muted);font-size:18px;line-height:2}.hero-actions{display:flex;align-items:center;gap:14px;margin-top:28px}.primary-cta{display:inline-flex;align-items:center;gap:22px}.primary-cta span{font-size:20px}.ghost-cta{padding:13px 16px;color:#5d574f}.hero-trust{display:flex;flex-wrap:wrap;gap:18px;margin-top:25px;color:#777066;font-size:12px}.hero-visual{position:relative;height:570px;display:flex;align-items:center;justify-content:center}.device-laptop{width:470px;height:310px;border:10px solid #252421;border-radius:20px;background:#222;box-shadow:0 30px 70px #6d573b2b;transform:perspective(1000px) rotateY(-7deg) rotateX(2deg);padding:8px}.screen{height:100%;border-radius:10px;background:#f4efe6;padding:20px}.screen-top{display:flex;justify-content:space-between;color:#71685c;font-weight:800}.dot{width:8px;height:8px;background:#b4864d;border-radius:50%}.food-banner{margin-top:18px;height:100px;border-radius:16px;background:linear-gradient(115deg,#28251f,#7b6041);color:white;padding:18px;display:flex;justify-content:space-between;align-items:flex-end}.food-banner small{display:block;opacity:.7}.food-banner strong{display:block;font-size:22px;margin-top:5px}.menu-lines{margin-top:18px}.menu-lines div{display:grid;grid-template-columns:18px 1fr auto;gap:10px;padding:10px 0;border-bottom:1px solid #ddd5c9}.menu-lines i{width:13px;height:13px;border-radius:50%;background:#c69b68}.device-phone{position:absolute;right:18px;bottom:40px;width:178px;height:350px;background:#171614;border:7px solid #242321;border-radius:30px;padding:6px;box-shadow:0 25px 50px #0004;transform:rotate(6deg)}.phone-screen{height:100%;border-radius:22px;background:#f8f4eb;padding:16px 12px;overflow:hidden}.phone-notch{width:70px;height:12px;background:#161513;border-radius:0 0 10px 10px;margin:-16px auto 14px}.mini-logo{text-align:center;font-weight:900;color:#80603c}.mini-photo{height:85px;border-radius:14px;background:linear-gradient(135deg,#9d7a4e,#332b21);margin:14px 0}.phone-screen h4{margin:8px 0}.mini-item{display:flex;align-items:center;gap:6px;background:white;border-radius:10px;padding:8px;margin:6px 0;font-size:9px}.mini-item strong{margin-right:auto}.qr-chip{margin-top:10px;text-align:center;background:#222;color:white;border-radius:9px;padding:7px;font-size:10px}.float-card{position:absolute;background:#fffdf9;border:1px solid #eee5d8;border-radius:16px;box-shadow:0 18px 40px #00000012;padding:12px;display:flex;align-items:center;gap:9px}.float-card small{display:block;color:#8a8379;font-size:9px;margin-top:2px}.float-qr{left:20px;top:105px}.qr-icon{font-size:24px}.float-free{right:0;top:20px}.float-free>b{font-size:26px;color:#a27645}.float-free span{font-size:10px;color:#777}.glow{position:absolute;border-radius:50%;filter:blur(5px);opacity:.55}.g1{width:260px;height:260px;background:#ead7b9;right:50px;top:100px}.g2{width:180px;height:180px;background:#e5d5c2;left:30px;bottom:50px}.device-laptop,.device-phone,.float-card{z-index:2}.social-strip{max-width:1200px;margin:auto;padding:18px 34px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;justify-content:center;gap:20px;color:#827a6e;font-size:11px}.social-strip i{width:4px;height:4px;border-radius:50%;background:#bda17f;align-self:center}.section{max-width:1200px;margin:auto;padding:105px 34px}.section-heading{display:flex;justify-content:space-between;align-items:end;gap:40px;margin-bottom:45px}.section-heading h2,.final-cta h2{font-size:clamp(34px,4vw,55px);letter-spacing:-2px;margin:12px 0}.section-heading p{max-width:360px;color:var(--muted);line-height:1.9}.centered{text-align:center;display:block}.centered p{margin:0 auto}.design-stage{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;align-items:end}.design-card{background:#fffdf9;border:1px solid var(--line);border-radius:24px;padding:12px;transition:.25s;position:relative}.design-card:hover{transform:translateY(-7px);box-shadow:0 20px 50px #00000012}.dc-b{transform:translateY(-20px)}.dc-b:hover{transform:translateY(-27px)}.dc-top{font-size:10px;color:#9a8d7b;padding:7px}.dc-photo{height:250px;border-radius:17px}.photo-a{background:linear-gradient(140deg,#34271e,#b3875d 55%,#efe0c9)}.photo-b{background:linear-gradient(145deg,#1f211e,#6f765e 50%,#d7c4a0)}.photo-c{background:linear-gradient(145deg,#eee6d8,#b9a083 45%,#4a4239)}.photo-d{background:linear-gradient(145deg,#262525,#b45f3d 50%,#ead8c5)}.design-card h3{margin:14px 4px 4px}.design-card>span{color:#91887b;font-size:11px;margin-right:4px}.featured-tag{position:absolute;top:20px;left:20px;background:#fff;color:#4b4135;border-radius:20px;padding:7px 10px;font-size:9px;font-weight:800}.design-more{display:flex;justify-content:space-between;align-items:center;margin-top:25px;color:#8b8174;font-size:12px}.design-more a{color:#a27645;font-weight:800}.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.step{padding:30px;border-top:1px solid #dcd4c8;position:relative}.step>span{position:absolute;left:30px;top:30px;color:#b2a797;font-size:10px}.step-icon{width:55px;height:55px;border-radius:18px;background:#eee6da;display:grid;place-items:center;font-size:22px;color:#8e653f}.step h3{margin:25px 0 10px;font-size:22px}.step p{color:var(--muted);line-height:1.9}.step.active{background:#fffdf9;border-radius:22px;box-shadow:0 18px 50px #0000000b}.features{padding-top:30px}.feature-panel{background:#20201d;color:#fff;border-radius:34px;padding:65px;display:grid;grid-template-columns:.9fr 1.1fr;gap:70px}.feature-panel .section-kicker{color:#d2a96f}.feature-panel h2{font-size:45px;line-height:1.2;margin:15px 0}.feature-panel p{color:#aaa69e;line-height:1.9}.primary-cta.dark{background:#f5eadb;color:#222;margin-top:15px}.feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:35px}.feature-grid>div{border-top:1px solid #3a3934;padding-top:18px}.feature-grid b{color:#c9a678;font-size:11px}.feature-grid h3{margin:12px 0 5px}.feature-grid p{font-size:12px;margin:0}.final-cta{max-width:1200px;margin:80px auto 0;padding:70px 34px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:30px}.final-cta p{color:var(--muted)}.home-footer{max-width:1200px;margin:auto;padding:25px 34px 45px;display:flex;align-items:center;gap:25px;color:#8b8377;font-size:11px}.home-footer .brand{color:#222}.home-footer>span{margin-right:auto}.app-area{max-width:900px;margin:20px auto 70px;padding:50px 24px;border-top:1px solid var(--line)}.app-heading{text-align:center;margin-bottom:30px}.app-heading h2{font-size:34px;margin:8px}.app-heading p{color:#777}@media(max-width:850px){.site-nav{padding:18px 20px}.site-nav nav{display:none}.nav-actions{gap:8px}.login-link{font-size:12px}.nav-cta{padding:10px 13px}.hero-section{grid-template-columns:1fr;padding:45px 20px;min-height:auto}.hero-copy{padding:0}.hero-copy h1{font-size:50px}.hero-visual{height:450px;transform:scale(.9)}.device-laptop{width:390px;height:260px}.device-phone{right:0;bottom:10px;width:150px;height:300px}.float-free{right:5px}.float-qr{left:0;top:80px}.social-strip{overflow:hidden;white-space:nowrap;justify-content:flex-start}.section{padding:75px 20px}.section-heading{display:block}.section-heading p{margin-top:15px}.design-stage{grid-template-columns:1fr 1fr}.dc-b{transform:none}.steps{grid-template-columns:1fr}.feature-panel{grid-template-columns:1fr;padding:35px 25px;gap:35px}.feature-panel h2{font-size:35px}.final-cta{margin-top:40px;padding:60px 20px;display:block}.final-cta .primary-cta{margin-top:25px}.home-footer{padding:25px 20px;flex-wrap:wrap}.home-footer>span{margin-right:0}}@media(max-width:520px){.hero-copy h1{font-size:43px;letter-spacing:-2px}.hero-copy>p{font-size:15px}.hero-actions{align-items:stretch;flex-direction:column}.hero-trust{gap:9px;font-size:10px}.hero-visual{height:390px;transform:scale(.72);transform-origin:center}.design-stage{grid-template-columns:1fr}.dc-photo{height:210px}.feature-grid{grid-template-columns:1fr}.home-footer p{width:100%}}@media print{.print{display:none}body{background:white}.wrap{max-width:none}.card{box-shadow:none}}${extra}</style></head><body>${body}</body></html>`}
-function authPage(mode){
-  const isLogin=mode==='login';
+export default {
+  async fetch(request, env) {
+    try {
+      const url = new URL(request.url);
+      const path = url.pathname;
 
-  return base(
-    isLogin?'تسجيل الدخول':'إنشاء حساب',
-    `<div class="auth-page">
-      <div class="auth-card">
-        <a href="/" class="auth-logo">✦ لمسة <small>LAMSA</small></a>
-
-        <div class="auth-kicker">${isLogin?'WELCOME BACK':'START WITH LAMSA'}</div>
-
-        <h1>${isLogin?'أهلاً بيك من جديد 👋':'ابدأ لمستك ✨'}</h1>
-
-        <p class="auth-sub">
-          ${isLogin
-            ?'سجّل دخولك لإدارة موقعك ومنيو مطعمك.'
-            :'أنشئ حسابك وابدأ موقع مطعمك أو الكافيه مجانًا.'}
-        </p>
-
-        <form id="authForm">
-          ${isLogin
-            ?`
-              <label>البريد الإلكتروني أو رقم الهاتف</label>
-              <input id="authLogin" autocomplete="username" placeholder="example@email.com">
-
-              <label>كلمة المرور</label>
-              <input id="authPassword" type="password" autocomplete="current-password" placeholder="كلمة المرور">
-
-              <button class="auth-primary" type="submit">
-                دخول إلى حسابي <span>←</span>
-              </button>
-            `
-            :`
-              <label>الاسم</label>
-              <input id="authName" autocomplete="name" placeholder="اسمك">
-
-              <label>البريد الإلكتروني</label>
-              <input id="authEmail" type="email" autocomplete="email" placeholder="example@email.com">
-
-              <label>رقم الهاتف</label>
-              <input id="authPhone" type="tel" autocomplete="tel" placeholder="01xxxxxxxxx">
-
-              <label>كلمة المرور</label>
-              <input id="authPassword" type="password" autocomplete="new-password" placeholder="8 أحرف أو أكثر">
-
-              <button class="auth-primary" type="submit">
-                إنشاء حسابي <span>←</span>
-              </button>
-            `}
-        </form>
-
-        <div id="authMessage" class="auth-message"></div>
-
-        <div class="auth-switch">
-          ${isLogin
-            ?`لسه معندكش حساب؟ <a href="/register">أنشئ حسابك مجانًا</a>`
-            :`عندك حساب بالفعل؟ <a href="/login">تسجيل الدخول</a>`}
-        </div>
-
-        <a href="/" class="auth-back">← الرجوع للموقع</a>
-      </div>
-    </div>
-
-    <style>
-      .auth-page{
-        min-height:100vh;
-        display:grid;
-        place-items:center;
-        padding:35px 18px;
-        background:
-          radial-gradient(circle at 15% 15%,#ead8bd 0,transparent 28%),
-          radial-gradient(circle at 85% 85%,#e5d8c8 0,transparent 30%),
-          #f8f5ef;
+      if (request.method === 'OPTIONS') {
+        return new Response(null, {
+          status: 204,
+          headers: corsHeaders()
+        });
       }
 
-      .auth-card{
-        width:min(100%,480px);
-        background:#fffdf9;
-        border:1px solid #e9e0d5;
-        border-radius:30px;
-        padding:34px;
-        box-shadow:0 25px 80px #4b321518;
+      if (path === '/health') {
+        return json({
+          ok: true,
+          service: 'LAMSA',
+          time: new Date().toISOString()
+        });
       }
 
-      .auth-logo{
-        display:inline-flex;
-        align-items:center;
-        gap:8px;
-        font-size:24px;
-        font-weight:900;
-        color:#25221e;
+      await initDB(env);
+
+      if (path === '/api/register' && request.method === 'POST')
+        return register(request, env);
+
+      if (path === '/api/login' && request.method === 'POST')
+        return login(request, env);
+
+      if (path === '/api/logout' && request.method === 'POST')
+        return logout(request, env);
+
+      if (path === '/api/me' && request.method === 'GET')
+        return me(request, env);
+
+      if (path === '/api/site' && request.method === 'GET')
+        return getSite(request, env);
+
+      if (path === '/api/site' && request.method === 'POST')
+        return createSite(request, env);
+
+      if (path === '/api/site' && request.method === 'PUT')
+        return updateSite(request, env);
+
+      if (path === '/api/categories' && request.method === 'POST')
+        return addCategory(request, env);
+
+      if (path === '/api/categories' && request.method === 'DELETE')
+        return deleteCategory(request, env);
+
+      if (path === '/api/items' && request.method === 'POST')
+        return addItem(request, env);
+
+      if (path === '/api/items' && request.method === 'PUT')
+        return updateItem(request, env);
+
+      if (path === '/api/items' && request.method === 'DELETE')
+        return deleteItem(request, env);
+
+      if (path === '/api/admin/sites' && request.method === 'GET')
+        return adminSites(request, env);
+
+      if (path === '/api/admin/renew' && request.method === 'POST')
+        return renew(request, env);
+
+      if (path === '/auth' || path === '/login' || path === '/register')
+        return html(authPage());
+
+      if (path === '/dashboard')
+        return html(dashboardPage());
+
+      if (path.startsWith('/m/'))
+        return publicMenu(request, env, path.slice(3));
+
+      return html(home());
+
+    } catch (error) {
+      return json({
+        error: 'حدث خطأ في النظام',
+        detail: error?.message || String(error)
+      }, 500);
+    }
+  }
+};
+
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type'
+  };
+}
+
+function json(data, status = 200, extra = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      'Content-Type': 'application/json;charset=UTF-8',
+      ...corsHeaders(),
+      ...extra
+    }
+  });
+}
+
+function html(body, status = 200) {
+  return new Response(body, {
+    status,
+    headers: {
+      'Content-Type': 'text/html;charset=UTF-8',
+      'Cache-Control': 'no-store'
+    }
+  });
+}
+
+function id() {
+  return crypto.randomUUID();
+}
+
+function clean(value, max = 500) {
+  return String(value ?? '').trim().slice(0, max);
+}
+
+function emailNorm(value) {
+  return clean(value, 180).toLowerCase();
+}
+
+function phoneNorm(value) {
+  return clean(value, 30).replace(/[^\d+]/g, '');
+}
+
+function slug(value) {
+  const result = clean(value, 80)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return result || `lamsa-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function escapeHTML(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[char]));
+}
+
+function getCookie(request, name) {
+  const cookies = request.headers.get('Cookie') || '';
+  const match = cookies.match(
+    new RegExp(`(?:^|;\\s*)${name}=([^;]+)`)
+  );
+
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function sessionCookie(value, maxAge = SESSION_DAYS * 86400) {
+  return `${COOKIE}=${encodeURIComponent(value)}; Max-Age=${maxAge}; Path=/; HttpOnly; Secure; SameSite=Lax`;
+}
+
+async function initDB(env) {
+  await env.DB.batch([
+    env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        phone TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'customer',
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `),
+
+    env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `),
+
+    env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS sites (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'restaurant',
+        slug TEXT NOT NULL UNIQUE,
+        design_id TEXT NOT NULL DEFAULT 'lux',
+        phone TEXT,
+        address TEXT,
+        hours TEXT,
+        logo_url TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        trial_ends_at TEXT NOT NULL,
+        subscription_ends_at TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `),
+
+    env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id TEXT PRIMARY KEY,
+        site_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (site_id) REFERENCES sites(id) ON DELETE CASCADE
+      )
+    `),
+
+    env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS items (
+        id TEXT PRIMARY KEY,
+        category_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        price REAL NOT NULL DEFAULT 0,
+        image_url TEXT,
+        available INTEGER NOT NULL DEFAULT 1,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+      )
+    `)
+  ]);
+}
+
+async function hashPassword(password, salt = null) {
+  const saltBytes =
+    salt || crypto.getRandomValues(new Uint8Array(16));
+
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveBits']
+  );
+
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: saltBytes,
+      iterations: 120000,
+      hash: 'SHA-256'
+    },
+    key,
+    256
+  );
+
+  return `${toHex(saltBytes)}:${toHex(new Uint8Array(bits))}`;
+}
+
+function toHex(bytes) {
+  return [...bytes]
+    .map(byte => byte.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+function fromHex(hex) {
+  const bytes = new Uint8Array(hex.length / 2);
+
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+
+  return bytes;
+}
+
+async function verifyPassword(password, stored) {
+  const [salt, expected] = String(stored || '').split(':');
+
+  if (!salt || !expected) return false;
+
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveBits']
+  );
+
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: fromHex(salt),
+      iterations: 120000,
+      hash: 'SHA-256'
+    },
+    key,
+    256
+  );
+
+  return toHex(new Uint8Array(bits)) === expected;
+}
+
+async function createSession(env, userId) {
+  const sessionId = id();
+
+  const expires = new Date(
+    Date.now() + SESSION_DAYS * 86400000
+  ).toISOString();
+
+  await env.DB
+    .prepare(`
+      INSERT INTO sessions(id,user_id,expires_at)
+      VALUES(?,?,?)
+    `)
+    .bind(sessionId, userId, expires)
+    .run();
+
+  return sessionId;
+}
+
+async function currentUser(request, env) {
+  const sessionId = getCookie(request, COOKIE);
+
+  if (!sessionId) return null;
+
+  return env.DB
+    .prepare(`
+      SELECT u.*
+      FROM sessions s
+      JOIN users u ON u.id = s.user_id
+      WHERE s.id = ?
+      AND s.expires_at > ?
+    `)
+    .bind(sessionId, new Date().toISOString())
+    .first();
+}
+
+async function requireUser(request, env) {
+  const user = await currentUser(request, env);
+
+  if (!user) {
+    throw new Error('يجب تسجيل الدخول أولاً');
+  }
+
+  return user;
+}
+
+async function register(request, env) {
+  const body = await request.json();
+
+  const name = clean(body.name, 100);
+  const email = emailNorm(body.email);
+  const phone = phoneNorm(body.phone);
+  const password = String(body.password || '');
+
+  if (name.length < 2)
+    return json({ error: 'اكتب الاسم بشكل صحيح' }, 400);
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    return json({ error: 'البريد الإلكتروني غير صحيح' }, 400);
+
+  if (phone.length < 8)
+    return json({ error: 'رقم الهاتف غير صحيح' }, 400);
+
+  if (password.length < 6)
+    return json({
+      error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'
+    }, 400);
+
+  const duplicate = await env.DB
+    .prepare(`
+      SELECT id
+      FROM users
+      WHERE email = ?
+      OR phone = ?
+    `)
+    .bind(email, phone)
+    .first();
+
+  if (duplicate) {
+    return json({
+      error: 'البريد الإلكتروني أو رقم الهاتف مستخدم بالفعل'
+    }, 409);
+  }
+
+  const count = await env.DB
+    .prepare(`SELECT COUNT(*) AS total FROM users`)
+    .first();
+
+  const role =
+    Number(count?.total || 0) === 0
+      ? 'admin'
+      : 'customer';
+
+  const userId = id();
+  const passwordHash = await hashPassword(password);
+
+  await env.DB
+    .prepare(`
+      INSERT INTO users
+      (id,name,email,phone,password_hash,role)
+      VALUES(?,?,?,?,?,?)
+    `)
+    .bind(
+      userId,
+      name,
+      email,
+      phone,
+      passwordHash,
+      role
+    )
+    .run();
+
+  const sessionId =
+    await createSession(env, userId);
+
+  return json(
+    {
+      ok: true,
+      user: {
+        id: userId,
+        name,
+        email,
+        phone,
+        role
       }
-
-      .auth-logo small{
-        font-size:9px;
-        letter-spacing:3px;
-        color:#a27645;
-        align-self:flex-end;
-        margin-bottom:3px;
-      }
-
-      .auth-kicker{
-        margin-top:38px;
-        color:#a27645;
-        font-size:10px;
-        letter-spacing:2px;
-        font-weight:900;
-      }
-
-      .auth-card h1{
-        font-size:40px;
-        margin:10px 0 7px;
-        letter-spacing:-1px;
-      }
-
-      .auth-sub{
-        color:#746f66;
-        line-height:1.9;
-        margin:0 0 25px;
-      }
-
-      .auth-card label{
-        display:block;
-        font-size:13px;
-        font-weight:800;
-        margin:13px 0 6px;
-        color:#39342e;
-      }
-
-      .auth-card input{
-        width:100%;
-        box-sizing:border-box;
-        padding:14px 15px;
-        border:1px solid #ddd3c7;
-        border-radius:14px;
-        background:#fff;
-        color:#222;
-        font:inherit;
-        outline:none;
-      }
-
-      .auth-card input:focus{
-        border-color:#b4864d;
-        box-shadow:0 0 0 3px #b4864d18;
-      }
-
-      .auth-primary{
-        width:100%;
-        border:0;
-        border-radius:15px;
-        padding:15px 18px;
-        margin-top:20px;
-        background:#211f1c;
-        color:#fff;
-        font:inherit;
-        font-weight:900;
-        cursor:pointer;
-      }
-
-      .auth-primary span{
-        float:left;
-        font-size:20px;
-      }
-
-      .auth-message{
-        min-height:20px;
-        margin-top:15px;
-        text-align:center;
-        color:#9a392e;
-        font-size:13px;
-      }
-
-      .auth-switch{
-        margin-top:20px;
-        padding-top:20px;
-        border-top:1px solid #eee5da;
-        text-align:center;
-        color:#777066;
-        font-size:13px;
-      }
-
-      .auth-switch a{
-        color:#9b6d3e;
-        font-weight:900;
-      }
-
-      .auth-back{
-        display:block;
-        text-align:center;
-        margin-top:20px;
-        color:#8a8176;
-        font-size:12px;
-      }
-
-      @media(max-width:520px){
-        .auth-card{
-          padding:26px 20px;
-          border-radius:24px;
-        }
-
-        .auth-card h1{
-          font-size:34px;
-        }
-      }
-    </style>
-
-    <script>
-      const form=document.getElementById('authForm');
-      const msg=document.getElementById('authMessage');
-
-      form.addEventListener('submit',async(e)=>{
-        e.preventDefault();
-
-        const button=form.querySelector('button');
-        button.disabled=true;
-        button.style.opacity='.6';
-        msg.textContent='جاري التنفيذ...';
-
-        try{
-          const payload=${isLogin
-            ?`{
-                login:document.getElementById('authLogin').value,
-                password:document.getElementById('authPassword').value
-              }`
-            :`{
-                name:document.getElementById('authName').value,
-                email:document.getElementById('authEmail').value,
-                phone:document.getElementById('authPhone').value,
-                password:document.getElementById('authPassword').value
-              }`};
-
-          const response=await fetch(
-            '${isLogin?'/api/login':'/api/register'}',
-            {
-              method:'POST',
-              headers:{'content-type':'application/json'},
-              credentials:'same-origin',
-              body:JSON.stringify(payload)
-            }
-          );
-
-          const data=await response.json().catch(()=>({}));
-
-          if(!response.ok){
-            throw new Error(data.error||'حدث خطأ، حاول مرة أخرى.');
-          }
-
-          location.href='/dashboard';
-
-        }catch(error){
-          msg.textContent=error.message;
-          button.disabled=false;
-          button.style.opacity='1';
-        }
-      });
-    </script>`
+    },
+    200,
+    {
+      'Set-Cookie': sessionCookie(sessionId)
+    }
   );
 }
-```js
-function dashboardPage(){
-  return base('لوحة التحكم',`<div id="app" class="app-area"></div><script>${client()}</script>`);
+
+async function login(request, env) {
+  const body = await request.json();
+
+  const identity = clean(
+    body.identity ||
+    body.email ||
+    body.phone,
+    180
+  );
+
+  const password = String(body.password || '');
+
+  const user = await env.DB
+    .prepare(`
+      SELECT *
+      FROM users
+      WHERE email = ?
+      OR phone = ?
+    `)
+    .bind(
+      emailNorm(identity),
+      phoneNorm(identity)
+    )
+    .first();
+
+  if (
+    !user ||
+    !(await verifyPassword(
+      password,
+      user.password_hash
+    ))
+  ) {
+    return json({
+      error: 'بيانات الدخول غير صحيحة'
+    }, 401);
+  }
+
+  const sessionId =
+    await createSession(env, user.id);
+
+  return json(
+    {
+      ok: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role
+      }
+    },
+    200,
+    {
+      'Set-Cookie': sessionCookie(sessionId)
+    }
+  );
 }
 
-function home(){return base('لمسة',`<div class="home-shell">
-<header class="site-nav"><a class="brand" href="/"><span class="brand-mark">L</span><span><b>لمسة</b><small>LAMSA</small></span></a><nav><a href="#designs">التصميمات</a><a href="#how">كيف تعمل؟</a><a href="#features">المميزات</a></nav><div class="nav-actions"><a class="login-link" href="/login">تسجيل الدخول</a><a class="nav-cta" href="/register">ابدأ مجانًا</a></div></header>
-<section class="hero-section"><div class="hero-copy"><div class="eyebrow"><span>✦</span> منصة مطاعم وكافيهات عربية</div><h1>خلّي مطعمك<br><em>له لمسة مختلفة.</em></h1><p>اعمل موقعك والمنيو الرقمي بنفسك، اختار التصميم اللي يناسبك، وانشره لعملائك برابط وQR في دقائق.</p><div class="hero-actions"><a class="primary-cta" href="/register">ابدأ موقعك مجانًا <span>←</span></a><a class="ghost-cta" href="#designs">شوف التصميمات <span>⌄</span></a></div><div class="hero-trust"><span>✓ 30 يوم مجانًا</span><span>✓ تعديل المنيو بنفسك</span><span>✓ QR جاهز</span></div></div><div class="hero-visual"><div class="glow g1"></div><div class="glow g2"></div><div class="device-laptop"><div class="screen"><div class="screen-top"><span>لمسة</span><span class="dot"></span></div><div class="food-banner"><div><small>مطعم اليوم</small><strong>طعم يفضل في الذاكرة</strong></div><span>✦</span></div><div class="menu-lines"><div><i></i><b>برجر لمسة</b><strong>١٨٠ ج</strong></div><div><i></i><b>باستا كريمي</b><strong>١٦٠ ج</strong></div><div><i></i><b>موهيتو فراولة</b><strong>٨٥ ج</strong></div></div></div></div><div class="device-phone"><div class="phone-screen"><div class="phone-notch"></div><div class="mini-logo">لمسة</div><div class="mini-photo"></div><h4>قائمة الطعام</h4><div class="mini-item"><span>🍔</span><b>برجر كلاسيك</b><strong>١٨٠</strong></div><div class="mini-item"><span>🥤</span><b>موهيتو</b><strong>٨٥</strong></div><div class="qr-chip">▦ QR</div></div></div><div class="float-card float-qr"><span class="qr-icon">▦</span><div><b>QR Menu</b><small>جاهز للمشاركة</small></div></div><div class="float-card float-free"><b>30</b><span>يوم<br>مجانًا</span></div></div></section>
-<section class="social-strip"><span>صمّم حضور مطعمك بشكل يليق بيه</span><i></i><span>منيو رقمي</span><i></i><span>موقع مطعم</span><i></i><span>QR سريع</span></section>
-<section id="designs" class="section showcase"><div class="section-heading"><div><span class="section-kicker">DESIGN LIBRARY</span><h2>اختار الستايل اللي يشبهك.</h2></div><p>مجموعة تصميمات معمولة للمطاعم والكافيهات، وكل تصميم له شخصية مختلفة.</p></div><div class="design-stage"><div class="design-card dc-a"><div class="dc-top">01</div><div class="dc-photo photo-a"></div><h3>ليالي</h3><span>دافئ • راقي</span></div><div class="design-card dc-b featured"><div class="dc-top">02</div><div class="dc-photo photo-b"></div><h3>رويال</h3><span>فاخر • عصري</span><div class="featured-tag">تصميم مميز</div></div><div class="design-card dc-c"><div class="dc-top">03</div><div class="dc-photo photo-c"></div><h3>كافيه</h3><span>هادئ • بسيط</span></div><div class="design-card dc-d"><div class="dc-top">04</div><div class="dc-photo photo-d"></div><h3>مودرن</h3><span>نظيف • جريء</span></div></div><div class="design-more"><span>+56 تصميم إضافي</span><a href="/register">ابدأ واختر تصميمك ←</a></div></section>
-<section id="how" class="section how"><div class="section-heading centered"><span class="section-kicker">HOW IT WORKS</span><h2>من فكرة لموقع شغال في 3 خطوات.</h2><p>من غير تعقيد، ومن غير ما تحتاج تكون مبرمج.</p></div><div class="steps"><div class="step"><span>01</span><div class="step-icon">✦</div><h3>اختار التصميم</h3><p>اختار الشكل المناسب لهوية مطعمك من مكتبة التصميمات.</p></div><div class="step active"><span>02</span><div class="step-icon">☷</div><h3>جهّز منيو مطعمك</h3><p>ضيف الأقسام والأصناف والأسعار والصور وعدّلها وقت ما تحب.</p></div><div class="step"><span>03</span><div class="step-icon">⌁</div><h3>انشر وشارك</h3><p>خد رابط ثابت وQR وشاركه مع زباينك بسهولة.</p></div></div></section>
-<section id="features" class="section features"><div class="feature-panel"><div><span class="section-kicker">BUILT FOR RESTAURANTS</span><h2>كل اللي مطعمك محتاجه<br>في مكان واحد.</h2><p>من أول شكل الموقع لحد المنيو والـQR. وإنت صاحب القرار في كل تفصيلة.</p><a class="primary-cta dark" href="/register">ابدأ مجانًا <span>←</span></a></div><div class="feature-grid"><div><b>01</b><h3>تعديل سهل</h3><p>الأسعار والأصناف في إيدك.</p></div><div><b>02</b><h3>QR ثابت</h3><p>نفس الرابط حتى مع تحديث المنيو.</p></div><div><b>03</b><h3>PDF للطباعة</h3><p>نسخة مرتبة للطباعة والحفظ.</p></div><div><b>04</b><h3>30 يوم مجانًا</h3><p>جرّب قبل الاشتراك.</p></div></div></div></section>
-<section class="final-cta"><div><span>جاهز تعمل حاجة مختلفة؟</span><h2>موقعك يبدأ من هنا ✨</h2><p>ابدأ مجانًا، وابني حضور يليق بمطعمك.</p></div><a class="primary-cta" href="/register">ابدأ موقعك مجانًا <span>←</span></a></section>
-<footer class="home-footer"><div class="brand"><span class="brand-mark">L</span><span><b>لمسة</b><small>LAMSA</small></span></div><p>منيو وموقع مطعمك، بلمسة واحدة.</p><span>الدعم: ${SUPPORT_PHONE}</span></footer>
-<div id="app" class="app-area"><div class="app-heading"><span class="section-kicker">YOUR ACCOUNT</span><h2>ابدأ من هنا</h2><p>سجّل دخولك أو أنشئ حسابك، وهنكمّل من جوه المنصة.</p><div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:22px"><a class="primary-cta" href="/register">إنشاء حساب مجاني <span>←</span></a><a class="ghost-cta" href="/login">تسجيل الدخول</a></div></div></div>
-</div>`)}
+async function logout(request, env) {
+  const sessionId =
+    getCookie(request, COOKIE);
 
-function client(){return `
-const $=s=>document.querySelector(s);
-const api=async(p,o={})=>{const r=await fetch(p,{...o,headers:{'content-type':'application/json',...(o.headers||{})}});const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||'حدث خطأ');return j};
-async function start(){try{const m=await api('/api/me');render(m.user)}catch(e){render(null,e.message)}}
-function shell(title,sub,content){return '<div class="dash"><header class="dash-head"><a class="brand" href="/">✦ <span>لمسة</span></a><button class="menu-btn" onclick="toggleMenu()" aria-label="القائمة">☰</button><div id="sideMenu" class="side-menu"><button onclick="closeMenu()">×</button><a href="#profile" onclick="profile();closeMenu()">👤 ملفي الشخصي</a><a href="#support" onclick="support();closeMenu()">🆘 الدعم</a><a href="#settings" onclick="settings();closeMenu()">⚙️ الإعدادات</a><button class="logout-link" onclick="out()">🚪 تسجيل الخروج</button></div></header><main class="dash-main"><div class="welcome"><span class="eyebrow">LAMSA • لوحة التحكم</span><h1>'+title+'</h1><p>'+sub+'</p></div>'+content+'</main></div><style>.dash{min-height:100vh;background:linear-gradient(180deg,#fbfaf7 0%,#f3eee7 100%);color:#24221f}.dash-head{height:72px;background:#fffaf4cc;backdrop-filter:blur(14px);border-bottom:1px solid #e9e0d5;display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:20}.brand{font-size:25px;font-weight:900;color:#28231e;text-decoration:none}.brand span{margin-right:6px}.menu-btn{width:46px;height:46px;border:1px solid #e5dbd0;background:#fff;border-radius:14px;font-size:24px;cursor:pointer}.side-menu{position:fixed;top:0;right:-310px;width:280px;height:100vh;background:#fff;box-shadow:-18px 0 50px #0002;z-index:50;padding:25px;box-sizing:border-box;transition:.25s;display:flex;flex-direction:column;gap:10px}.side-menu.open{right:0}.side-menu>a,.side-menu button{border:0;background:#faf7f2;color:#29251f;text-align:right;text-decoration:none;padding:15px;border-radius:13px;font:inherit;cursor:pointer}.side-menu>button:first-child{background:#24211e;color:white;text-align:center;font-size:24px}.side-menu .logout-link{margin-top:auto;background:#f9e9e5;color:#8c3227}.dash-main{max-width:1100px;margin:auto;padding:35px 20px 70px}.welcome{margin:10px 0 30px}.eyebrow{font-size:12px;font-weight:800;letter-spacing:.08em;color:#a06d35}.welcome h1{font-size:clamp(30px,5vw,52px);margin:8px 0 8px}.welcome p{color:#756e66;font-size:17px}.dash-grid{display:grid;grid-template-columns:1.35fr .65fr;gap:18px}.dash-card{background:#fff;border:1px solid #eee5db;border-radius:25px;padding:22px;box-shadow:0 16px 45px #4b32150d}.dash-card h2{margin-top:0}.primary{background:#24211e;color:#fff;border:0;border-radius:14px;padding:13px 18px;font:inherit;font-weight:800;cursor:pointer}.soft{background:#f4ede5;color:#312b25;border:0;border-radius:14px;padding:12px 16px;font:inherit;cursor:pointer}.designs{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.design{min-height:125px;border-radius:18px;padding:16px;color:#fff;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden}.design:before{content:"";position:absolute;inset:0;background:linear-gradient(145deg,#fff5,transparent 55%)}.design b,.design span{position:relative}.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.step{padding:17px;border-radius:18px;background:#faf7f2;border:1px solid #eee4d8}.step strong{display:block;font-size:24px;margin-bottom:8px}.stat{font-size:34px;font-weight:900}.notice{padding:15px;border-radius:16px;background:#fff3ce;color:#6c5214;margin:12px 0}.site-actions{display:flex;gap:9px;flex-wrap:wrap}.field{width:100%;box-sizing:border-box;padding:13px;border:1px solid #e2d8cd;border-radius:13px;margin:6px 0 10px;background:#fff}.item-row{padding:13px 0;border-bottom:1px solid #eee;display:flex;justify-content:space-between;gap:10px}.muted{color:#777}.back{margin-bottom:15px}@media(max-width:760px){.dash-main{padding:25px 14px 55px}.dash-grid,.steps{grid-template-columns:1fr}.designs{grid-template-columns:repeat(2,1fr)}.dash-head{padding:0 15px}.welcome h1{font-size:34px}}</style>'}
-function toggleMenu(){$('#sideMenu')?.classList.toggle('open')}function closeMenu(){$('#sideMenu')?.classList.remove('open')}
-async function render(u,error){const a=$('#app');if(error){a.innerHTML='<div class="card"><h2>حصل خطأ</h2><p>'+error+'</p><button class="btn" onclick="start()">إعادة المحاولة</button></div>';return}if(!u){a.innerHTML='<div class="auth-card"><div class="auth-brand">✦ لمسة</div><h1>ابدأ لمستك</h1><p>أنشئ موقع مطعمك أو الكافيه في خطوات بسيطة.</p><div class="auth-tabs"><button class="active" onclick="showAuth(\'login\')">تسجيل الدخول</button><button onclick="showAuth(\'register\')">إنشاء حساب</button></div><div id="authBox"></div></div><style>.auth-card{max-width:520px;margin:55px auto;padding:30px;background:#fff;border:1px solid #eee5db;border-radius:28px;box-shadow:0 20px 60px #00000010}.auth-brand{font-weight:900;font-size:25px}.auth-card h1{font-size:40px;margin:18px 0 5px}.auth-card p{color:#777}.auth-tabs{display:flex;gap:8px;background:#f5f0ea;padding:6px;border-radius:14px;margin:25px 0}.auth-tabs button{flex:1;border:0;padding:12px;border-radius:10px;background:transparent;font:inherit;cursor:pointer}.auth-tabs button.active{background:#25211d;color:#fff}.auth-card input{width:100%;box-sizing:border-box;padding:13px;border:1px solid #ddd2c7;border-radius:13px;margin:6px 0 10px}.auth-card .primary{width:100%;margin-top:8px}</style>';showAuth('login');return}let s=await api('/api/site');if(!s.site){a.innerHTML=shell('أهلاً '+u.name+' 👋','موقعك يبدأ من هنا. اختار شكل المطعم وابدأ بناء المنيو.', '<div class="dash-grid"><section class="dash-card"><h2>ابدأ موقعك</h2><p class="muted">هتحتاج اسم المطعم ورقم التواصل فقط في البداية.</p><input class="field" id="sn" placeholder="اسم المطعم / الكافيه"><input class="field" id="sp" placeholder="رقم الهاتف"><input class="field" id="sa" placeholder="العنوان"><button class="primary" onclick="create()">ابدأ إنشاء الموقع ✨</button></section><section class="dash-card"><div class="stat">30</div><b>يوم تجربة مجانية</b><p class="muted">ابدأ بدون تعقيد، وبعدها تقدر تجدد الموقع من الإدارة.</p></section></div><section class="dash-card" style="margin-top:18px"><h2>شكل موقعك يبدأ من هنا</h2><div class="designs">'+DESIGN_PREVIEW+'</div></section>');return}dashboard(u,s)}
-function showAuth(mode){const b=$('#authBox');if(!b)return;if(mode==='login'){b.innerHTML='<input id="login" placeholder="البريد الإلكتروني أو رقم الهاتف"><input id="pw" type="password" placeholder="كلمة المرور"><button class="primary" onclick="goLogin()">دخول إلى حسابي</button>'}else{b.innerHTML='<input id="nm" placeholder="الاسم"><input id="em" placeholder="البريد الإلكتروني"><input id="ph" placeholder="رقم الهاتف"><input id="np" type="password" placeholder="كلمة المرور — 8 أحرف أو أكثر"><button class="primary" onclick="goReg()">إنشاء حسابي</button>'}}
-const DESIGN_PREVIEW='<div class="design" style="background:linear-gradient(135deg,#b77b38,#4a2f1c)"><b>ليالي</b><span>مطعم شرقي</span></div><div class="design" style="background:linear-gradient(135deg,#2d6a62,#153936)"><b>كافيه</b><span>ستايل عصري</span></div><div class="design" style="background:linear-gradient(135deg,#8b6a43,#25211d)"><b>رويال</b><span>مطعم فاخر</span></div>';
-function dashboard(u,s){const a=$('#app'),x=s.expiry,warning=x.days<=7&&!x.expired;const designs=s.designs.slice(0,6).map(d=>'<div class="design" style="background:linear-gradient(135deg,'+d.tone+',#222)"><b>'+d.name+'</b><span>استخدم هذا التصميم</span></div>').join('');a.innerHTML=shell('أهلاً '+u.name+' 👋','كل أدوات موقعك ومنيو مطعمك في مكان واحد.','<div class="dash-grid"><section class="dash-card"><h2>'+s.site.name+'</h2><p class="muted">'+(s.site.address||'أضف عنوان المطعم من الإعدادات')+'</p><div class="site-actions"><a class="primary" href="/m/'+s.site.slug+'" target="_blank">👁️ مشاهدة الموقع</a><button class="soft" onclick="menuBuilder()">✏️ تعديل المنيو</button><button class="soft" onclick="alert(\'رابط QR الجاهز: '+location.origin+'/m/'+s.site.slug+'\')">▣ QR</button></div>'+(warning?'<div class="notice">⚠️ متبقي '+x.days+' أيام على انتهاء الموقع. بعد انتهاء المدة سيتوقف، والتجديد يتم من إدارة لمسة.</div>':'')+(x.expired?'<div class="notice">⛔ انتهت المدة. تواصل مع إدارة لمسة لتجديد الموقع.</div>':'')+'</section><section class="dash-card"><div class="stat">'+Math.max(0,x.days)+'</div><b>يوم متبقي</b><p class="muted">حالة الموقع: '+(x.expired?'منتهي':'نشط')+'</p></section></div><section class="dash-card" style="margin-top:18px"><h2>خطوات موقعك</h2><div class="steps"><div class="step"><strong>①</strong><b>اختار التصميم</b><p class="muted">اختار الستايل المناسب لمطعمك.</p></div><div class="step"><strong>②</strong><b>ابني المنيو</b><p class="muted">أقسام، أصناف، أسعار وصور.</p></div><div class="step"><strong>③</strong><b>انشر QR</b><p class="muted">رابط ثابت يوصّل الزبون لمنيوك.</p></div></div></section><section class="dash-card" style="margin-top:18px"><h2>التصميمات</h2><p class="muted">'+(s.expiry.trial?'التصاميم الأساسية متاحة الآن، والمكتبة الكاملة تفتح بعد التجديد.':'مكتبة التصميمات الكاملة متاحة بعد التجديد.')+'</p><div class="designs">'+designs+'</div></section>'+(u.role==='admin'?'<section class="dash-card" style="margin-top:18px"><h2>إدارة لمسة</h2><p class="muted">أنت مدير المنصة.</p><button class="primary" onclick="admin()">فتح لوحة الإدارة</button></section>':'')+'</div>')}
-async function profile(){const m=await api('/api/me');$('#app').innerHTML=shell('ملفي الشخصي','بيانات الحساب الأساسية.','<section class="dash-card"><p><b>الاسم</b><br>'+m.user.name+'</p><p><b>البريد</b><br>'+m.user.email+'</p><p><b>الهاتف</b><br>'+m.user.phone+'</p><button class="soft" onclick="start()">← رجوع للوحة التحكم</button></section>')}
-function support(){$('#app').innerHTML=shell('الدعم','إحنا معاك لو احتجت مساعدة.','<section class="dash-card"><h2>دعم لمسة 🆘</h2><p>للاستفسارات أو تجديد الموقع تواصل مع إدارة لمسة.</p><h3>011111369788</h3><button class="soft" onclick="start()">← رجوع</button></section>')}
-function settings(){$('#app').innerHTML=shell('الإعدادات','إعدادات حسابك والمنصة.','<section class="dash-card"><h2>إعدادات الحساب ⚙️</h2><p class="muted">إعدادات الحساب المتقدمة هنضيفها في المرحلة التالية.</p><button class="soft" onclick="start()">← رجوع</button></section>')}
-async function goLogin(){try{await api('/api/login',{method:'POST',body:JSON.stringify({login:$('#login').value,password:$('#pw').value})});start()}catch(e){alert(e.message)}}
-async function goReg(){try{await api('/api/register',{method:'POST',body:JSON.stringify({name:$('#nm').value,email:$('#em').value,phone:$('#ph').value,password:$('#np').value})});start()}catch(e){alert(e.message)}}
-async function create(){try{await api('/api/site',{method:'POST',body:JSON.stringify({name:$('#sn').value,phone:$('#sp').value,address:$('#sa').value})});start()}catch(e){alert(e.message)}}
-async function out(){await api('/api/logout',{method:'POST'});start()}
-async function menuBuilder(){const s=await api('/api/site');const a=$('#app');a.innerHTML=shell('منيو '+s.site.name,'أضف الأقسام والأصناف والأسعار بكل سهولة.','<section class="dash-card"><button class="soft back" onclick="start()">← رجوع</button><h2>الأقسام</h2><input class="field" id="cn" placeholder="مثلاً: مشروبات"><button class="primary" onclick="addCat()">إضافة قسم</button><div>'+s.categories.map(c=>'<div class="item-row"><span>'+c.name+'</span><button class="soft" onclick="delCat(\''+c.id+'\')">حذف</button></div>').join('')+'</div><hr><h2>إضافة صنف</h2><input class="field" id="in" placeholder="اسم الصنف"><input class="field" id="ip" type="number" placeholder="السعر"><input class="field" id="idsc" placeholder="الوصف"><select class="field" id="ic"><option value="">بدون قسم</option>'+s.categories.map(c=>'<option value="'+c.id+'">'+c.name+'</option>').join('')+'</select><input class="field" id="ii" placeholder="رابط صورة اختياري"><button class="primary" onclick="addItem()">إضافة الصنف</button><h2 style="margin-top:30px">الأصناف</h2>'+s.items.map(i=>'<div class="item-row"><span><b>'+i.name+'</b><br><small>'+i.price+' جنيه</small></span><button class="soft" onclick="delItem(\''+i.id+'\')">حذف</button></div>').join('')+'</section>')}
-async function addCat(){try{await api('/api/categories',{method:'POST',body:JSON.stringify({name:$('#cn').value})});menuBuilder()}catch(e){alert(e.message)}}async function delCat(id){await api('/api/categories?id='+encodeURIComponent(id),{method:'DELETE'});menuBuilder()}async function addItem(){try{await api('/api/items',{method:'POST',body:JSON.stringify({name:$('#in').value,price:$('#ip').value,description:$('#idsc').value,category_id:$('#ic').value,image_url:$('#ii').value})});menuBuilder()}catch(e){alert(e.message)}}async function delItem(id){await api('/api/items?id='+encodeURIComponent(id),{method:'DELETE'});menuBuilder()}
-async function admin(){let j=await api('/api/admin/sites');$('#app').innerHTML=shell('إدارة لمسة','تحكم كامل في المواقع والاشتراكات.','<section class="dash-card"><button class="soft back" onclick="start()">← رجوع</button>'+j.sites.map(s=>'<div class="item-row"><span><b>'+s.name+'</b><br>'+s.owner_name+' — '+s.owner_phone+'<br>الحالة: '+s.subscription_status+'</span><span><button class="soft" onclick="renew(\''+s.id+'\',30)">30 يوم</button> <button class="primary" onclick="renew(\''+s.id+'\',365)">سنة</button></span></div>').join('')+'</section>')}
-async function renew(id,days){await api('/api/admin/renew',{method:'POST',body:JSON.stringify({site_id:id,days})});alert('تم تشغيل الموقع');admin()}
-start();`}
-function menuPage(s,cats,items){const groups=cats.map(c=>{const its=items.filter(i=>i.category_id===c.id);return `<section class="card"><h2>${esc(c.name)}</h2>${its.map(i=>`<div class="item">${i.image_url?`<img src="${esc(i.image_url)}" style="width:90px;height:70px;object-fit:cover;border-radius:12px;float:left;margin-right:12px">`:''}<b>${esc(i.name)}</b><div>${esc(i.description)}</div><span class="price">${Number(i.price).toLocaleString('ar-EG')} جنيه</span></div>`).join('')}</section>`}).join('');const unc=items.filter(i=>!i.category_id);return base(s.name,`<div class="wrap"><div class="card"><h1>${esc(s.name)}</h1><p>${esc(s.address||'')} ${s.phone?' • '+esc(s.phone):''}</p><p class="muted">${esc(s.hours||'')}</p></div>${groups}${unc.length?`<section class="card"><h2>المنيو</h2>${unc.map(i=>`<div class="item"><b>${esc(i.name)}</b><div>${esc(i.description)}</div><span class="price">${Number(i.price).toLocaleString('ar-EG')} جنيه</span></div>`).join('')}</section>`:''}<button class="btn print" onclick="window.print()">🖨️ تحميل / طباعة PDF</button></div>`)}
-function expiredPage(s){return base(s.name,`<div class="wrap"><div class="card"><h1>${esc(s.name)}</h1><h2>المنيو متوقف مؤقتًا</h2><p>انتهت مدة التجربة/الاشتراك. يرجى التواصل مع إدارة لمسة لتجديد الموقع وتشغيله.</p><p>الدعم: <b>${SUPPORT_PHONE}</b></p></div></div>`)}
+  if (sessionId) {
+    await env.DB
+      .prepare(`DELETE FROM sessions WHERE id=?`)
+      .bind(sessionId)
+      .run();
+  }
+
+  return json(
+    { ok: true },
+    200,
+    {
+      'Set-Cookie': sessionCookie('', 0)
+    }
+  );
+}
+
+async function me(request, env) {
+  const user =
+    await currentUser(request, env);
+
+  if (!user)
+    return json({ user: null });
+
+  return json({
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role
+    }
+  });
+}
+
+function subscriptionInfo(site) {
+  const now = Date.now();
+
+  const subscriptionEnd =
+    site.subscription_ends_at
+      ? new Date(site.subscription_ends_at).getTime()
+      : 0;
+
+  const trialEnd =
+    new Date(site.trial_ends_at).getTime();
+
+  const subscribed =
+    subscriptionEnd > now;
+
+  const end =
+    subscribed
+      ? subscriptionEnd
+      : trialEnd;
+
+  return {
+    end,
+    days: Math.max(
+      0,
+      Math.ceil((end - now) / 86400000)
+    ),
+    expired: end <= now,
+    trial: !subscribed,
+    subscribed
+  };
+}
+
+async function getOwnerSite(request, env) {
+  const user =
+    await requireUser(request, env);
+
+  const site =
+    await env.DB
+      .prepare(`
+        SELECT *
+        FROM sites
+        WHERE user_id=?
+        ORDER BY created_at ASC
+        LIMIT 1
+      `)
+      .bind(user.id)
+      .first();
+
+  return { user, site };
+}
+
+async function getSite(request, env) {
+  const { user, site } =
+    await getOwnerSite(request, env);
+
+  if (!site) {
+    return json({
+      user,
+      site: null
+    });
+  }
+
+  const categories =
+    await env.DB
+      .prepare(`
+        SELECT *
+        FROM categories
+        WHERE site_id=?
+        ORDER BY sort_order,id
+      `)
+      .bind(site.id)
+      .all();
+
+  const items =
+    await env.DB
+      .prepare(`
+        SELECT i.*
+        FROM items i
+        JOIN categories c
+          ON c.id=i.category_id
+        WHERE c.site_id=?
+        ORDER BY i.sort_order,i.id
+      `)
+      .bind(site.id)
+      .all();
+
+  return json({
+    user,
+    site,
+    categories: categories.results || [],
+    items: items.results || [],
+    dates: subscriptionInfo(site),
+    designs: DESIGNS
+  });
+}
+
+async function createSite(request, env) {
+  const { user, site } =
+    await getOwnerSite(request, env);
+
+  if (site) {
+    return json({
+      error: 'لديك موقع بالفعل'
+    }, 409);
+  }
+
+  const body = await request.json();
+
+  const name =
+    clean(body.name, 120);
+
+  if (!name) {
+    return json({
+      error: 'اكتب اسم المطعم أو الكافيه'
+    }, 400);
+  }
+
+  let siteSlug = slug(name);
+
+  const exists =
+    await env.DB
+      .prepare(`SELECT id FROM sites WHERE slug=?`)
+      .bind(siteSlug)
+      .first();
+
+  if (exists) {
+    siteSlug =
+      `${siteSlug}-${Math.random()
+        .toString(36)
+        .slice(2, 7)}`;
+  }
+
+  const siteId = id();
+
+  const trialEnd =
+    new Date(
+      Date.now() + FREE_DAYS * 86400000
+    ).toISOString();
+
+  await env.DB
+    .prepare(`
+      INSERT INTO sites
+      (
+        id,
+        user_id,
+        name,
+        type,
+        slug,
+        design_id,
+        status,
+        trial_ends_at,
+        phone,
+        address,
+        hours,
+        logo_url
+      )
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+    `)
+    .bind(
+      siteId,
+      user.id,
+      name,
+      clean(body.type, 30) || 'restaurant',
+      siteSlug,
+      'design-01',
+      'active',
+      trialEnd,
+      clean(body.phone, 30),
+      clean(body.address, 250),
+      clean(body.hours, 250),
+      clean(body.logo_url, 500)
+    )
+    .run();
+
+  await env.DB
+    .prepare(`
+      INSERT INTO categories
+      (id,site_id,name,sort_order)
+      VALUES(?,?,?,?)
+    `)
+    .bind(
+      id(),
+      siteId,
+      'المنيو',
+      0
+    )
+    .run();
+
+  return getSite(request, env);
+}
+
+async function updateSite(request, env) {
+  const { user, site } =
+    await getOwnerSite(request, env);
+
+  if (!site)
+    return json({
+      error: 'أنشئ الموقع أولاً'
+    }, 404);
+
+  const body =
+    await request.json();
+
+  let designId =
+    clean(body.design_id, 60) ||
+    site.design_id;
+
+  const info =
+    subscriptionInfo(site);
+
+  const allowed =
+    info.trial
+      ? DESIGNS.slice(0, 5)
+      : DESIGNS;
+
+  if (!allowed.some(d => d.id === designId)) {
+    designId = site.design_id;
+  }
+
+  await env.DB
+    .prepare(`
+      UPDATE sites
+      SET
+        name=?,
+        type=?,
+        design_id=?,
+        phone=?,
+        address=?,
+        hours=?,
+        logo_url=?
+      WHERE id=?
+      AND user_id=?
+    `)
+    .bind(
+      clean(body.name, 120) || site.name,
+      clean(body.type, 30) || site.type,
+      designId,
+      clean(body.phone, 30),
+      clean(body.address, 250),
+      clean(body.hours, 250),
+      clean(body.logo_url, 500),
+      site.id,
+      user.id
+    )
+    .run();
+
+  return getSite(request, env);
+}
+
+async function addCategory(request, env) {
+  const { site } =
+    await getOwnerSite(request, env);
+
+  if (!site)
+    return json({
+      error: 'أنشئ الموقع أولاً'
+    }, 404);
+
+  const body =
+    await request.json();
+
+  const name =
+    clean(body.name, 100);
+
+  if (!name)
+    return json({
+      error: 'اكتب اسم القسم'
+    }, 400);
+
+  const max =
+    await env.DB
+      .prepare(`
+        SELECT COALESCE(MAX(sort_order),-1) AS n
+        FROM categories
+        WHERE site_id=?
+      `)
+      .bind(site.id)
+      .first();
+
+  await env.DB
+    .prepare(`
+      INSERT INTO categories
+      (id,site_id,name,sort_order)
+      VALUES(?,?,?,?)
+    `)
+    .bind(
+      id(),
+      site.id,
+      name,
+      Number(max?.n || -1) + 1
+    )
+    .run();
+
+  return getSite(request, env);
+}
+
+async function deleteCategory(request, env) {
+  const { site } =
+    await getOwnerSite(request, env);
+
+  if (!site)
+    return json({
+      error: 'لا يوجد موقع'
+    }, 404);
+
+  const body =
+    await request.json();
+
+  const categoryId =
+    clean(body.id, 100);
+
+  const category =
+    await env.DB
+      .prepare(`
+        SELECT id
+        FROM categories
+        WHERE id=?
+        AND site_id=?
+      `)
+      .bind(categoryId, site.id)
+      .first();
+
+  if (!category)
+    return json({
+      error: 'القسم غير موجود'
+    }, 404);
+
+  await env.DB
+    .prepare(`
+      DELETE FROM categories
+      WHERE id=?
+    `)
+    .bind(categoryId)
+    .run();
+
+  return getSite(request, env);
+}
+
+async function addItem(request, env) {
+  const { site } =
+    await getOwnerSite(request, env);
+
+  if (!site)
+    return json({
+      error: 'لا يوجد موقع'
+    }, 404);
+
+  const body =
+    await request.json();
+
+  const categoryId =
+    clean(body.category_id, 100);
+
+  const name =
+    clean(body.name, 120);
+
+  const price =
+    Number(body.price);
+
+  if (!categoryId || !name)
+    return json({
+      error: 'اختر القسم واكتب اسم الصنف'
+    }, 400);
+
+  if (!Number.isFinite(price) || price < 0)
+    return json({
+      error: 'السعر غير صحيح'
+    }, 400);
+
+  const category =
+    await env.DB
+      .prepare(`
+        SELECT id
+        FROM categories
+        WHERE id=?
+        AND site_id=?
+      `)
+      .bind(categoryId, site.id)
+      .first();
+
+  if (!category)
+    return json({
+      error: 'القسم غير صحيح'
+    }, 400);
+
+  const max =
+    await env.DB
+      .prepare(`
+        SELECT COALESCE(MAX(i.sort_order),-1) AS n
+        FROM items i
+        JOIN categories c
+          ON c.id=i.category_id
+        WHERE c.site_id=?
+        AND i.category_id=?
+      `)
+      .bind(site.id, categoryId)
+      .first();
+
+  await env.DB
+    .prepare(`
+      INSERT INTO items
+      (
+        id,
+        category_id,
+        name,
+        description,
+        price,
+        image_url,
+        available,
+        sort_order
+      )
+      VALUES(?,?,?,?,?,?,?,?)
+    `)
+    .bind(
+      id(),
+      categoryId,
+      name,
+      clean(body.description, 500),
+      price,
+      clean(body.image_url, 500),
+      body.available === false ? 0 : 1,
+      Number(max?.n || -1) + 1
+    )
+    .run();
+
+  return getSite(request, env);
+}
+
+async function updateItem(request, env) {
+  const { site } =
+    await getOwnerSite(request, env);
+
+  if (!site)
+    return json({
+      error: 'لا يوجد موقع'
+    }, 404);
+
+  const body =
+    await request.json();
+
+  const itemId =
+    clean(body.id, 100);
+
+  const categoryId =
+    clean(body.category_id, 100);
+
+  const name =
+    clean(body.name, 120);
+
+  const price =
+    Number(body.price);
+
+  if (!itemId || !categoryId || !name)
+    return json({
+      error: 'بيانات الصنف ناقصة'
+    }, 400);
+
+  if (!Number.isFinite(price) || price < 0)
+    return json({
+      error: 'السعر غير صحيح'
+    }, 400);
+
+  const category =
+    await env.DB
+      .prepare(`
+        SELECT id
+        FROM categories
+        WHERE id=?
+        AND site_id=?
+      `)
+      .bind(categoryId, site.id)
+      .first();
+
+  if (!category)
+    return json({
+      error: 'القسم غير صحيح'
+    }, 400);
+
+  const result =
+    await env.DB
+      .prepare(`
+        UPDATE items
+        SET
+          category_id=?,
+          name=?,
+          description=?,
+          price=?,
+          image_url=?,
+          available=?
+        WHERE id=?
+        AND category_id IN (
+          SELECT id
+          FROM categories
+          WHERE site_id=?
+        )
+      `)
+      .bind(
+        categoryId,
+        name,
+        clean(body.description, 500),
+        price,
+        clean(body.image_url, 500),
+        body.available === false ? 0 : 1,
+        itemId,
+        site.id
+      )
+      .run();
+
+  if (!result.meta?.changes)
+    return json({
+      error: 'الصنف غير موجود'
+    }, 404);
+
+  return getSite(request, env);
+}
+
+async function deleteItem(request, env) {
+  const { site } =
+    await getOwnerSite(request, env);
+
+  if (!site)
+    return json({
+      error: 'لا يوجد موقع'
+    }, 404);
+
+  const body =
+    await request.json();
+
+  const itemId =
+    clean(body.id, 100);
+
+  const result =
+    await env.DB
+      .prepare(`
+        DELETE FROM items
+        WHERE id=?
+        AND category_id IN (
+          SELECT id
+          FROM categories
+          WHERE site_id=?
+        )
+      `)
+      .bind(itemId, site.id)
+      .run();
+
+  if (!result.meta?.changes)
+    return json({
+      error: 'الصنف غير موجود'
+    }, 404);
+
+  return getSite(request, env);
+}
+
+async function adminSites(request, env) {
+  const user =
+    await requireUser(request, env);
+
+  if (user.role !== 'admin')
+    return json({
+      error: 'غير مصرح'
+    }, 403);
+
+  const result =
+    await env.DB
+      .prepare(`
+        SELECT
+          s.*,
+          u.name AS owner_name,
+          u.email AS owner_email,
+          u.phone AS owner_phone
+        FROM sites s
+        JOIN users u
+          ON u.id=s.user_id
+        ORDER BY s.created_at DESC
+      `)
+      .all();
+
+  return json({
+    sites: (result.results || []).map(site => ({
+      ...site,
+      dates: subscriptionInfo(site)
+    }))
+  });
+}
+
+async function renew(request, env) {
+  const user =
+    await requireUser(request, env);
+
+  if (user.role !== 'admin')
+    return json({
+      error: 'غير مصرح'
+    }, 403);
+
+  const body =
+    await request.json();
+
+  const siteId =
+    clean(body.site_id, 100);
+
+  const site =
+    await env.DB
+      .prepare(`SELECT * FROM sites WHERE id=?`)
+      .bind(siteId)
+      .first();
+
+  if (!site)
+    return json({
+      error: 'الموقع غير موجود'
+    }, 404);
+
+  const oldEnd =
+    site.subscription_ends_at
+      ? new Date(site.subscription_ends_at).getTime()
+      : 0;
+
+  const start =
+    Math.max(Date.now(), oldEnd);
+
+  const end =
+    new Date(
+      start + 30 * 86400000
+    ).toISOString();
+
+  await env.DB
+    .prepare(`
+      UPDATE sites
+      SET
+        subscription_ends_at=?,
+        status='active'
+      WHERE id=?
+    `)
+    .bind(end, siteId)
+    .run();
+
+  return json({
+    ok: true,
+    subscription_ends_at: end
+  });
+}
+
+async function publicMenu(request, env, siteSlug) {
+  const site =
+    await env.DB
+      .prepare(`
+        SELECT *
+        FROM sites
+        WHERE slug=?
+      `)
+      .bind(clean(siteSlug, 100))
+      .first();
+
+  if (!site) {
+    return html(`
+      <div style="font-family:Arial;text-align:center;padding:80px">
+        <h1>المنيو غير موجودة</h1>
+      </div>
+    `, 404);
+  }
+
+  const info =
+    subscriptionInfo(site);
+
+  if (info.expired) {
+    return html(`
+      <div style="font-family:Arial;text-align:center;padding:80px">
+        <h1>المنيو غير متاحة حالياً</h1>
+        <p>انتهت مدة التجربة أو الاشتراك.</p>
+      </div>
+    `);
+  }
+
+  const categories =
+    await env.DB
+      .prepare(`
+        SELECT *
+        FROM categories
+        WHERE site_id=?
+        ORDER BY sort_order,id
+      `)
+      .bind(site.id)
+      .all();
+
+  const items =
+    await env.DB
+      .prepare(`
+        SELECT i.*
+        FROM items i
+        JOIN categories c
+          ON c.id=i.category_id
+        WHERE c.site_id=?
+        AND i.available=1
+        ORDER BY i.sort_order,i.id
+      `)
+      .bind(site.id)
+      .all();
+
+  return html(menuPage(
+    site,
+    categories.results || [],
+    items.results || []
+  ));
+}
+
+function base(title, body) {
+  return `<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeHTML(title)}</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;
+ font-family:Arial,sans-serif;
+ background:#f7f5f1;
+ color:#222
+}
+a{text-decoration:none;color:inherit}
+button,input,select,textarea{font:inherit}
+.container{
+ width:min(1100px,92%);
+ margin:auto
+}
+.top{
+ background:#171717;
+ color:#fff;
+ padding:12px;
+ text-align:center
+}
+.nav{
+ background:#fff;
+ padding:18px 5%;
+ display:flex;
+ justify-content:space-between;
+ align-items:center;
+ border-bottom:1px solid #eee
+}
+.brand{
+ font-size:28px;
+ font-weight:900
+}
+.brand span{color:#b58a4a}
+.btn{
+ display:inline-block;
+ border:0;
+ border-radius:12px;
+ padding:12px 20px;
+ background:#171717;
+ color:#fff;
+ font-weight:bold;
+ cursor:pointer
+}
+.gold{background:#b58a4a}
+.light{
+ background:#eee;
+ color:#222
+}
+.hero{
+ padding:80px 20px;
+ text-align:center;
+ background:#fff
+}
+.hero h1{
+ font-size:clamp(38px,7vw,65px);
+ margin:10px 0
+}
+.hero p{
+ max-width:700px;
+ margin:20px auto 30px;
+ line-height:2;
+ color:#666
+}
+.actions{
+ display:flex;
+ justify-content:center;
+ gap:12px;
+ flex-wrap:wrap
+}
+.section{padding:60px 0}
+.section h2{text-align:center}
+.cards{
+ display:grid;
+ grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+ gap:15px
+}
+.card{
+ background:#fff;
+ padding:22px;
+ border-radius:18px;
+ border:1px solid #eee;
+ margin-bottom:18px
+}
+.auth{
+ min-height:100vh;
+ display:grid;
+ place-items:center;
+ padding:20px
+}
+.authbox{
+ width:min(460px,100%);
+ background:#fff;
+ padding:30px;
+ border-radius:22px;
+ box-shadow:0 20px 60px #0002
+}
+.tabs{
+ display:flex;
+ gap:5px;
+ background:#eee;
+ padding:5px;
+ border-radius:12px;
+ margin:20px 0
+}
+.tabs button{
+ flex:1;
+ border:0;
+ padding:12px;
+ border-radius:9px
+}
+.tabs .active{
+ background:#171717;
+ color:#fff
+}
+.field{margin:12px 0}
+.field label{
+ display:block;
+ margin-bottom:6px;
+ font-weight:bold
+}
+.field input,
+.field select,
+.field textarea{
+ width:100%;
+ padding:12px;
+ border:1px solid #ddd;
+ border-radius:10px
+}
+.field textarea{
+ min-height:90px
+}
+.msg{
+ display:none;
+ padding:12px;
+ background:#fff0c2;
+ border-radius:10px;
+ margin-top:12px
+}
+.dashhead{
+ background:#171717;
+ color:#fff;
+ padding:18px
+}
+.dashbar{
+ display:flex;
+ justify-content:space-between;
+ align-items:center
+}
+.hamb{
+ border:0;
+ background:none;
+ color:#fff;
+ font-size:28px
+}
+.side{
+ position:fixed;
+ top:0;
+ right:0;
+ bottom:0;
+ width:min(330px,90%);
+ background:#fff;
+ z-index:10;
+ padding:25px;
+ transform:translateX(110%);
+ transition:.25s;
+ box-shadow:-10px 0 40px #0002
+}
+.side.open{transform:translateX(0)}
+.side a,.side button{
+ display:block;
+ width:100%;
+ padding:15px;
+ border:0;
+ background:none;
+ text-align:right;
+ border-bottom:1px solid #eee
+}
+.main{padding:30px 0}
+.grid{
+ display:grid;
+ grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+ gap:18px
+}
+.designs{
+ display:grid;
+ grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+ gap:10px
+}
+.design{
+ background:#fff;
+ border:2px solid #eee;
+ border-radius:14px;
+ padding:16px;
+ text-align:center
+}
+.design.selected{
+ border-color:#b58a4a
+}
+.item{
+ padding:15px 0;
+ border-bottom:1px solid #eee
+}
+.row{
+ display:flex;
+ gap:8px;
+ align-items:center;
+ flex-wrap:wrap
+}
+.small{
+ color:#777;
+ font-size:13px
+}
+.public{
+ min-height:100vh;
+ padding-bottom:60px
+}
+.publichead{
+ text-align:center;
+ padding:50px 20px
+}
+.category{
+ width:min(850px,92%);
+ margin:20px auto;
+ background:#fff;
+ padding:20px;
+ border-radius:20px
+}
+.food{
+ display:flex;
+ gap:15px;
+ padding:15px 0;
+ border-bottom:1px solid #eee
+}
+.food img{
+ width:90px;
+ height:90px;
+ object-fit:cover;
+ border-radius:12px
+}
+.foodmain{flex:1}
+.price{font-weight:900}
+.footer{
+ text-align:center;
+ color:#777;
+ padding:30px
+}
+@media(max-width:600px){
+ .nav a:not(.btn){display:none}
+ .hero{padding:55px 15px}
+}
+</style>
+</head>
+<body>
+${body}
+</body>
+</html>`;
+}
+
+function home() {
+  return base(
+    'لمسة | LAMSA',
+    `
+<div class="top">
+✨ لمسة — ابنِ موقعك ومنيوك بنفسك
+</div>
+
+<header class="nav">
+<a class="brand" href="/">
+لم<span>س</span>ة
+</a>
+
+<div>
+<a class="btn light" href="/auth">
+تسجيل الدخول
+</a>
+</div>
+</header>
+
+<section class="hero">
+<div class="container">
+
+<div class="small">
+للمطاعم والكافيهات
+</div>
+
+<h1>
+ابني موقعك بنفسك<br>
+وابني المنيو بنفسك
+</h1>
+
+<p>
+أنشئ موقعك ومنيوك الرقمية بنفسك،
+وعدّل الأسعار والأصناف والصور في أي وقت.
+</p>
+
+<div class="actions">
+<a class="btn gold" href="/auth">
+ابدأ الآن
+</a>
+
+<a class="btn" href="/auth">
+أنشئ موقعك
+</a>
+</div>
+
+</div>
+</section>
+
+<section class="section">
+<div class="container">
+<h2>لماذا لمسة؟</h2>
+
+<div class="cards">
+
+<div class="card">
+<h3>🌐 موقع احترافي</h3>
+<p>
+أنشئ صفحة خاصة بمطعمك أو الكافيه.
+</p>
+</div>
+
+<div class="card">
+<h3>📋 منيو رقمية</h3>
+<p>
+أضف الأقسام والأصناف والأسعار والصور.
+</p>
+</div>
+
+<div class="card">
+<h3>📱 رابط خاص</h3>
+<p>
+رابط ثابت لمنيو مطعمك يمكن مشاركته.
+</p>
+</div>
+
+<div class="card">
+<h3>📲 QR</h3>
+<p>
+الرابط مناسب للاستخدام مع QR والطباعة.
+</p>
+</div>
+
+</div>
+</div>
+</section>
+
+<section class="section">
+<div class="container">
+<h2>ابدأ مجاناً</h2>
+
+<p style="text-align:center">
+30 يوم تجربة مجانية.
+</p>
+
+<div style="text-align:center">
+<a class="btn gold" href="/auth">
+إنشاء حساب
+</a>
+</div>
+
+</div>
+</section>
+
+<div class="footer">
+© ${new Date().getFullYear()} لمسة LAMSA
+</div>
+`
+  );
+}
+
+function authPage() {
+  return base(
+    'تسجيل الدخول | لمسة',
+    `
+<div class="auth">
+
+<div class="authbox">
+
+<div style="text-align:center">
+<div class="brand">
+لم<span>س</span>ة
+</div>
+
+<p class="small">
+تسجيل الدخول أو إنشاء حساب جديد
+</p>
+</div>
+
+<div class="tabs">
+
+<button id="loginTab"
+class="active"
+onclick="showTab('login')">
+تسجيل الدخول
+</button>
+
+<button id="registerTab"
+onclick="showTab('register')">
+إنشاء حساب
+</button>
+
+</div>
+
+<div id="loginForm">
+
+<div class="field">
+<label>
+البريد الإلكتروني أو رقم الهاتف
+</label>
+<input id="loginIdentity">
+</div>
+
+<div class="field">
+<label>كلمة المرور</label>
+<input id="loginPassword" type="password">
+</div>
+
+<button class="btn gold"
+style="width:100%"
+onclick="doLogin()">
+تسجيل الدخول
+</button>
+
+</div>
+
+<div id="registerForm" style="display:none">
+
+<div class="field">
+<label>الاسم</label>
+<input id="regName">
+</div>
+
+<div class="field">
+<label>البريد الإلكتروني</label>
+<input id="regEmail" type="email">
+</div>
+
+<div class="field">
+<label>رقم الهاتف</label>
+<input id="regPhone">
+</div>
+
+<div class="field">
+<label>كلمة المرور</label>
+<input id="regPassword" type="password">
+</div>
+
+<button class="btn gold"
+style="width:100%"
+onclick="doRegister()">
+إنشاء الحساب
+</button>
+
+</div>
+
+<div id="msg" class="msg"></div>
+
+<p style="text-align:center;margin-top:20px">
+<a href="/">العودة للرئيسية</a>
+</p>
+
+</div>
+</div>
+
+<script>
+function showTab(type){
+
+ loginForm.style.display =
+   type==='login' ? 'block' : 'none';
+
+ registerForm.style.display =
+   type==='register' ? 'block' : 'none';
+
+ loginTab.classList.toggle(
+   'active',
+   type==='login'
+ );
+
+ registerTab.classList.toggle(
+   'active',
+   type==='register'
+ );
+
+ msg.style.display='none';
+}
+
+function showError(text){
+ msg.textContent=text;
+ msg.style.display='block';
+}
+
+async function send(url,data){
+
+ const response=await fetch(url,{
+   method:'POST',
+   headers:{
+     'Content-Type':'application/json'
+   },
+   body:JSON.stringify(data)
+ });
+
+ const result=await response.json();
+
+ if(!response.ok){
+   throw new Error(
+     result.error || 'حدث خطأ'
+   );
+ }
+
+ return result;
+}
+
+async function doLogin(){
+
+ try{
+
+   await send('/api/login',{
+     identity:loginIdentity.value,
+     password:loginPassword.value
+   });
+
+   location.href='/dashboard';
+
+ }catch(error){
+
+   showError(error.message);
+
+ }
+}
+
+async function doRegister(){
+
+ try{
+
+   await send('/api/register',{
+     name:regName.value,
+     email:regEmail.value,
+     phone:regPhone.value,
+     password:regPassword.value
+   });
+
+   location.href='/dashboard';
+
+ }catch(error){
+
+   showError(error.message);
+
+ }
+}
+</script>
+`
+  );
+}
+
+function dashboardPage() {
+  return base(
+    'لوحة التحكم | لمسة',
+    `
+<div id="app"></div>
+
+<script>
+let state=null;
+
+async function api(url,options={}){
+
+ const response=await fetch(url,{
+   ...options,
+   headers:{
+     'Content-Type':'application/json',
+     ...(options.headers||{})
+   }
+ });
+
+ const result=await response.json();
+
+ if(!response.ok){
+   throw new Error(
+     result.error ||
+     result.detail ||
+     'حدث خطأ'
+   );
+ }
+
+ return result;
+}
+
+function esc(v){
+ return String(v??'')
+ .replace(/[&<>"']/g,c=>({
+   '&':'&amp;',
+   '<':'&lt;',
+   '>':'&gt;',
+   '"':'&quot;',
+   "'":'&#39;'
+ }[c]));
+}
+
+function money(v){
+ return Number(v||0)
+ .toLocaleString('ar-EG',{
+   maximumFractionDigits:2
+ });
+}
+
+async function load(){
+
+ try{
+
+   state=await api('/api/site');
+
+   render();
+
+ }catch(error){
+
+   document.getElementById('app').innerHTML=
+   '<div class="container" style="padding-top:50px">'+
+   '<div class="card">'+
+   '<h2>حدث خطأ</h2>'+
+   '<p>'+esc(error.message)+'</p>'+
+   '</div></div>';
+
+ }
+
+}
+
+function layout(content){
+
+ return \`
+ <header class="dashhead">
+
+   <div class="container dashbar">
+
+     <div>
+       <b>لمسة</b>
+       <div class="small" style="color:#ccc">
+         لوحة التحكم
+       </div>
+     </div>
+
+     <button class="hamb"
+       onclick="openMenu()">
+       ☰
+     </button>
+
+   </div>
+
+ </header>
+
+ <div id="shade"
+ style="
+ display:none;
+ position:fixed;
+ inset:0;
+ background:#0006;
+ z-index:9"
+ onclick="closeMenu()">
+ </div>
+
+ <aside id="side" class="side">
+
+   <div class="row"
+   style="justify-content:space-between">
+
+     <b>القائمة</b>
+
+     <button onclick="closeMenu()">
+       ×
+     </button>
+
+   </div>
+
+   <a href="#" onclick="dashboard();closeMenu()">
+     🏠 لوحة التحكم
+   </a>
+
+   <a href="#" onclick="siteData();closeMenu()">
+     📋 البيانات
+   </a>
+
+   <a href="#" onclick="menuBuilder();closeMenu()">
+     🍽️ إدارة المنيو
+   </a>
+
+   <a href="#" onclick="designs();closeMenu()">
+     🎨 التصميم
+   </a>
+
+   <a href="#" onclick="support();closeMenu()">
+     🆘 الدعم
+   </a>
+
+   ${
+     state.user.role==='admin'
+       ? '<a href="#" onclick="adminPanel();closeMenu()">🛡️ الإدارة</a>'
+       : ''
+   }
+
+   <button onclick="logout()">
+     🚪 تسجيل الخروج
+   </button>
+
+ </aside>
+
+ <main class="main">
+   <div class="container">
+     ${content}
+   </div>
+ </main>
+ \`;
+}
+
+function render(){
+
+ if(!state.user){
+
+   document.getElementById('app').innerHTML=`
+   <div class="auth">
+   <div class="authbox" style="text-align:center">
+   <h2>يجب تسجيل الدخول</h2>
+   <a class="btn gold" href="/auth">
+   تسجيل الدخول / إنشاء حساب
+   </a>
+   </div>
+   </div>`;
+
+   return;
+ }
+
+ if(!state.site){
+
+   document.getElementById('app').innerHTML=`
+   <div class="main">
+   <div class="container">
+
+   <div class="card">
+
+   <h1>
+   أهلاً ${esc(state.user.name)}
+   </h1>
+
+   <p>
+   ابدأ بإنشاء موقع مطعمك أو الكافيه.
+   </p>
+
+   <div class="field">
+   <label>اسم المطعم أو الكافيه</label>
+   <input id="newSiteName"
+   placeholder="مثال: مطعم لمسة">
+   </div>
+
+   <div class="field">
+   <label>نوع النشاط</label>
+
+   <select id="newSiteType">
+   <option value="restaurant">
+   مطعم
+   </option>
+
+   <option value="cafe">
+   كافيه
+   </option>
+   </select>
+
+   </div>
+
+   <button class="btn gold"
+   onclick="createSite()">
+   إنشاء الموقع
+   </button>
+
+   <div id="err" class="msg"></div>
+
+   </div>
+
+   </div>
+   </div>`;
+
+   return;
+ }
+
+ dashboard();
+}
+
+function dashboard(){
+
+ const site=state.site;
+ const d=state.dates;
+
+ document.getElementById('app').innerHTML=
+ layout(`
+
+ <div class="grid">
+
+ <div class="card">
+
+ <div class="small">
+ موقعك
+ </div>
+
+ <h1>
+ ${esc(site.name)}
+ </h1>
+
+ <p>
+ ${site.type==='cafe'?'كافيه':'مطعم'}
+ </p>
+
+ <div class="row">
+
+ <a class="btn gold"
+ target="_blank"
+ href="/m/${encodeURIComponent(site.slug)}">
+ مشاهدة المنيو
+ </a>
+
+ <button class="btn light"
+ onclick="menuBuilder()">
+ إدارة المنيو
+ </button>
+
+ </div>
+
+ </div>
+
+ <div class="card">
+
+ <div class="small">
+ الاشتراك
+ </div>
+
+ <h2>
+ ${d.subscribed?'اشتراك نشط':'تجربة مجانية'}
+ </h2>
+
+ <p>
+ متبقي
+ <b>${d.days}</b>
+ يوم
+ </p>
+
+ </div>
+
+ </div>
+
+ <div class="card">
+
+ <h2>
+ تصميم الموقع
+ </h2>
+
+ <p>
+ ${d.trial
+   ? 'متاح لك حالياً أول 5 تصميمات أثناء التجربة.'
+   : 'جميع التصميمات متاحة.'}
+ </p>
+
+ <button class="btn gold"
+ onclick="designs()">
+ اختيار التصميم
+ </button>
+
+ </div>
+
+ `);
+}
+
+function siteData(){
+
+ const s=state.site;
+
+ document.getElementById('app').innerHTML=
+ layout(`
+
+ <div class="card">
+
+ <h2>
+ بيانات المطعم / الكافيه
+ </h2>
+
+ <div class="field">
+ <label>اسم النشاط</label>
+ <input id="sn"
+ value="${esc(s.name)}">
+ </div>
+
+ <div class="field">
+ <label>النوع</label>
+
+ <select id="st">
+
+ <option value="restaurant"
+ ${s.type==='restaurant'?'selected':''}>
+ مطعم
+ </option>
+
+ <option value="cafe"
+ ${s.type==='cafe'?'selected':''}>
+ كافيه
+ </option>
+
+ </select>
+
+ </div>
+
+ <div class="field">
+ <label>رقم الهاتف</label>
+ <input id="sp"
+ value="${esc(s.phone||'')}">
+ </div>
+
+ <div class="field">
+ <label>العنوان</label>
+ <textarea id="sa">${esc(s.address||'')}</textarea>
+ </div>
+
+ <div class="field">
+ <label>مواعيد العمل</label>
+ <textarea id="sh">${esc(s.hours||'')}</textarea>
+ </div>
+
+ <div class="field">
+ <label>رابط الشعار</label>
+ <input id="sl"
+ value="${esc(s.logo_url||'')}">
+ </div>
+
+ <button class="btn gold"
+ onclick="saveSite()">
+ حفظ البيانات
+ </button>
+
+ <div id="err" class="msg"></div>
+
+ </div>
+
+ `);
+}
+
+function menuBuilder(){
+
+ const cats=state.categories||[];
+ const items=state.items||[];
+
+ document.getElementById('app').innerHTML=
+ layout(`
+
+ <div class="card">
+
+ <h2>
+ إدارة المنيو
+ </h2>
+
+ <p class="small">
+ يمكنك إضافة الأقسام والأصناف وتعديل الأسعار والوصف والصور.
+ </p>
+
+ <h3>
+ إضافة قسم
+ </h3>
+
+ <div class="row">
+
+ <input id="catName"
+ placeholder="مثال: المشروبات"
+ style="flex:1;padding:12px;border:1px solid #ddd;border-radius:10px">
+
+ <button class="btn gold"
+ onclick="addCategory()">
+ إضافة
+ </button>
+
+ </div>
+
+ </div>
+
+ <div class="card">
+
+ <h3>
+ إضافة صنف
+ </h3>
+
+ ${
+   cats.length
+   ? `
+
+ <div class="field">
+
+ <label>القسم</label>
+
+ <select id="itemCategory">
+
+ ${
+ cats.map(c=>`
+ <option value="${c.id}">
+ ${esc(c.name)}
+ </option>
+ `).join('')
+
+ }
+
+ </select>
+
+ </div>
+
+ <div class="field">
+ <label>اسم الصنف</label>
+ <input id="itemName">
+ </div>
+
+ <div class="field">
+ <label>السعر</label>
+ <input id="itemPrice"
+ type="number"
+ min="0"
+ step="0.01">
+ </div>
+
+ <div class="field">
+ <label>الوصف</label>
+ <textarea id="itemDescription"></textarea>
+ </div>
+
+ <div class="field">
+ <label>رابط الصورة</label>
+ <input id="itemImage">
+ </div>
+
+ <button class="btn gold"
+ onclick="addItem()">
+ إضافة الصنف
+ </button>
+
+ `
+   : '<p>أضف قسم أولاً.</p>'
+ }
+
+ </div>
+
+ <div class="card">
+
+ <h3>
+ الأصناف الحالية
+ </h3>
+
+ ${
+ cats.map(c=>{
+
+   const list=
+   items.filter(
+     i=>i.category_id===c.id
+   );
+
+   return `
+
+   <div style="margin-top:25px">
+
+   <div class="row"
+   style="justify-content:space-between">
+
+   <h3>
+   ${esc(c.name)}
+   </h3>
+
+   <button class="btn"
+   style="background:#b42318"
+   onclick="deleteCategory('${c.id}')">
+   حذف القسم
+   </button>
+
+   </div>
+
+   ${
+     list.length
+     ? list.map(i=>`
+
+       <div class="item">
+
+       <div class="row"
+       style="justify-content:space-between">
+
+       <div>
+
+       <b>
+       ${esc(i.name)}
+       </b>
+
+       <div class="price">
+       ${money(i.price)} ج.م
+       </div>
+
+       <div class="small">
+       ${esc(i.description||'')}
+       </div>
+
+       </div>
+
+       <div class="row">
+
+       <button class="btn light"
+       onclick="editItem('${i.id}')">
+       تعديل
+       </button>
+
+       <button class="btn"
+       style="background:#b42318"
+       onclick="deleteItem('${i.id}')">
+       حذف
+       </button>
+
+       </div>
+
+       </div>
+
+       </div>
+
+     `).join('')
+     : '<p class="small">لا توجد أصناف.</p>'
+   }
+
+   </div>
+   `;
+
+ }).join('')
+ }
+
+ </div>
+
+ `);
+}
+
+function editItem(itemId){
+
+ const item=
+ state.items.find(
+   i=>i.id===itemId
+ );
+
+ const cats=
+ state.categories||[];
+
+ document.getElementById('app').innerHTML=
+ layout(`
+
+ <div class="card">
+
+ <h2>
+ تعديل الصنف
+ </h2>
+
+ <div class="field">
+ <label>القسم</label>
+
+ <select id="editCategory">
+
+ ${
+ cats.map(c=>`
+ <option
+ value="${c.id}"
+ ${c.id===item.category_id?'selected':''}>
+ ${esc(c.name)}
+ </option>
+ `).join('')
+ }
+
+ </select>
+
+ </div>
+
+ <div class="field">
+ <label>اسم الصنف</label>
+ <input id="editName"
+ value="${esc(item.name)}">
+ </div>
+
+ <div class="field">
+ <label>السعر</label>
+ <input id="editPrice"
+ type="number"
+ min="0"
+ step="0.01"
+ value="${Number(item.price)}">
+ </div>
+
+ <div class="field">
+ <label>الوصف</label>
+ <textarea id="editDescription">${esc(item.description||'')}</textarea>
+ </div>
+
+ <div class="field">
+ <label>رابط الصورة</label>
+ <input id="editImage"
+ value="${esc(item.image_url||'')}">
+ </div>
+
+ <label>
+ <input id="editAvailable"
+ type="checkbox"
+ ${item.available?'checked':''}>
+ متاح للطلب
+ </label>
+
+ <div class="row"
+ style="margin-top:20px">
+
+ <button class="btn gold"
+ onclick="saveItem('${item.id}')">
+ حفظ
+ </button>
+
+ <button class="btn light"
+ onclick="menuBuilder()">
+ إلغاء
+ </button>
+
+ </div>
+
+ </div>
+
+ `);
+}
+
+function designs(){
+
+ const d=state.dates;
+ const current=state.site.design_id;
+
+ const available=
+ d.trial
+ ? state.designs.slice(0,5)
+ : state.designs;
+
+ document.getElementById('app').innerHTML=
+ layout(`
+
+ <div class="card">
+
+ <h2>
+ تصميم الموقع
+ </h2>
+
+ <p>
+ ${
+ d.trial
+ ? 'أول 5 تصميمات متاحة في التجربة.'
+ : 'كل التصميمات متاحة مع الاشتراك.'
+ }
+ </p>
+
+ <div class="designs">
+
+ ${
+ state.designs.map((design,index)=>{
+
+   const unlocked=
+     available.some(
+       d=>d.id===design.id
+     );
+
+   return `
+
+   <button
+   class="design ${current===design.id?'selected':''}"
+   ${unlocked
+     ? `onclick="selectDesign('${design.id}')"`
+     : 'disabled'}
+   >
+
+   <b>
+   ${esc(design.name)}
+   </b>
+
+   <div class="small">
+   ${esc(design.tone)}
+   </div>
+
+   ${
+     unlocked
+     ? ''
+     : '<div class="small">🔒</div>'
+   }
+
+   </button>
+
+   `;
+
+ }).join('')
+
+ }
+
+ </div>
+
+ </div>
+
+ `);
+}
+
+async function selectDesign(id){
+
+ try{
+
+   await api('/api/site',{
+     method:'PUT',
+     body:JSON.stringify({
+       design_id:id
+     })
+   });
+
+   await load();
+   designs();
+
+ }catch(error){
+
+   alert(error.message);
+
+ }
+}
+
+function support(){
+
+ document.getElementById('app').innerHTML=
+ layout(`
+
+ <div class="card"
+ style="text-align:center">
+
+ <h2>
+ الدعم
+ </h2>
+
+ <p>
+ لو محتاج مساعدة في الموقع أو المنيو تواصل معنا.
+ </p>
+
+ <a class="btn gold"
+ href="tel:${SUPPORT_PHONE}">
+ 📞 ${SUPPORT_PHONE}
+ </a>
+
+ </div>
+
+ `);
+}
+
+async function adminPanel(){
+
+ try{
+
+   const result=
+   await api('/api/admin/sites');
+
+   document.getElementById('app').innerHTML=
+   layout(`
+
+   <div class="card">
+
+   <h2>
+   إدارة المنصة
+   </h2>
+
+   ${
+     result.sites.map(site=>`
+
+       <div class="item">
+
+       <b>
+       ${esc(site.name)}
+       </b>
+
+       <div class="small">
+       صاحب الموقع:
+       ${esc(site.owner_name)}
+       </div>
+
+       <p>
+       ${
+         site.dates.subscribed
+         ? 'اشتراك نشط'
+         : 'تجربة مجانية'
+       }
+       </p>
+
+       <p>
+       متبقي:
+       ${site.dates.days}
+       يوم
+       </p>
+
+       <button class="btn gold"
+       onclick="renew('${site.id}')">
+       تجديد 30 يوم
+       </button>
+
+       </div>
+
+     `).join('')
+   }
+
+   </div>
+
+   `);
+
+ }catch(error){
+
+   alert(error.message);
+
+ }
+
+}
+
+async function createSite(){
+
+ try{
+
+   await api('/api/site',{
+     method:'POST',
+     body:JSON.stringify({
+       name:newSiteName.value,
+       type:newSiteType.value
+     })
+   });
+
+   await load();
+
+ }catch(error){
+
+   err.textContent=error.message;
+   err.style.display='block';
+
+ }
+
+}
+
+async function saveSite(){
+
+ try{
+
+   await api('/api/site',{
+     method:'PUT',
+     body:JSON.stringify({
+       name:sn.value,
+       type:st.value,
+       phone:sp.value,
+       address:sa.value,
+       hours:sh.value,
+       logo_url:sl.value
+     })
+   });
+
+   await load();
+   siteData();
+
+ }catch(error){
+
+   err.textContent=error.message;
+   err.style.display='block';
+
+ }
+
+}
+
+async function addCategory(){
+
+ try{
+
+   await api('/api/categories',{
+     method:'POST',
+     body:JSON.stringify({
+       name:catName.value
+     })
+   });
+
+   await load();
+   menuBuilder();
+
+ }catch(error){
+
+   alert(error.message);
+
+ }
+
+}
+
+async function deleteCategory(id){
+
+ if(!confirm(
+   'حذف القسم وكل الأصناف الموجودة داخله؟'
+ )) return;
+
+ try{
+
+   await api('/api/categories',{
+     method:'DELETE',
+     body:JSON.stringify({id})
+   });
+
+   await load();
+   menuBuilder();
+
+ }catch(error){
+
+   alert(error.message);
+
+ }
+
+}
+
+async function addItem(){
+
+ try{
+
+   await api('/api/items',{
+     method:'POST',
+     body:JSON.stringify({
+       category_id:itemCategory.value,
+       name:itemName.value,
+       price:itemPrice.value,
+       description:itemDescription.value,
+       image_url:itemImage.value
+     })
+   });
+
+   await load();
+   menuBuilder();
+
+ }catch(error){
+
+   alert(error.message);
+
+ }
+
+}
+
+async function saveItem(id){
+
+ try{
+
+   await api('/api/items',{
+     method:'PUT',
+     body:JSON.stringify({
+       id,
+       category_id:editCategory.value,
+       name:editName.value,
+       price:editPrice.value,
+       description:editDescription.value,
+       image_url:editImage.value,
+       available:editAvailable.checked
+     })
+   });
+
+   await load();
+   menuBuilder();
+
+ }catch(error){
+
+   alert(error.message);
+
+ }
+
+}
+
+async function deleteItem(id){
+
+ if(!confirm('حذف الصنف؟')) return;
+
+ try{
+
+   await api('/api/items',{
+     method:'DELETE',
+     body:JSON.stringify({id})
+   });
+
+   await load();
+   menuBuilder();
+
+ }catch(error){
+
+   alert(error.message);
+
+ }
+
+}
+
+async function renew(siteId){
+
+ try{
+
+   await api('/api/admin/renew',{
+     method:'POST',
+     body:JSON.stringify({
+       site_id:siteId
+     })
+   });
+
+   alert('تم تجديد الموقع لمدة 30 يوم');
+
+   adminPanel();
+
+ }catch(error){
+
+   alert(error.message);
+
+ }
+
+}
+
+async function logout(){
+
+ await api('/api/logout',{
+   method:'POST'
+ });
+
+ location.href='/auth';
+
+}
+
+function openMenu(){
+
+ side.classList.add('open');
+ shade.style.display='block';
+
+}
+
+function closeMenu(){
+
+ side.classList.remove('open');
+ shade.style.display='none';
+
+}
+
+window.dashboard=dashboard;
+window.siteData=siteData;
+window.menuBuilder=menuBuilder;
+window.editItem=editItem;
+window.designs=designs;
+window.selectDesign=selectDesign;
+window.support=support;
+window.adminPanel=adminPanel;
+window.createSite=createSite;
+window.saveSite=saveSite;
+window.addCategory=addCategory;
+window.deleteCategory=deleteCategory;
+window.addItem=addItem;
+window.saveItem=saveItem;
+window.deleteItem=deleteItem;
+window.renew=renew;
+window.logout=logout;
+window.openMenu=openMenu;
+window.closeMenu=closeMenu;
+
+load();
+</script>
+`
+  );
+}
+
+function menuPage(site, categories, items) {
+
+  const sections =
+    categories.map(category => {
+
+      const categoryItems =
+        items.filter(
+          item =>
+            item.category_id === category.id
+        );
+
+      return `
+<section class="category">
+
+<h2>
+${escapeHTML(category.name)}
+</h2>
+
+${
+ categoryItems.length
+ ? categoryItems.map(item => `
+
+ <div class="food">
+
+ ${
+   item.image_url
+   ? `
+   <img
+   src="${escapeHTML(item.image_url)}"
+   alt="${escapeHTML(item.name)}">
+   `
+   : ''
+ }
+
+ <div class="foodmain">
+
+ <div class="row"
+ style="justify-content:space-between">
+
+ <b>
+ ${escapeHTML(item.name)}
+ </b>
+
+ <span class="price">
+ ${Number(item.price || 0)
+   .toLocaleString('ar-EG')}
+ ج.م
+ </span>
+
+ </div>
+
+ <div class="small">
+ ${escapeHTML(item.description || '')}
+ </div>
+
+ </div>
+
+ </div>
+
+ `).join('')
+ : '<p class="small">لا توجد أصناف حالياً.</p>'
+}
+
+</section>
+`;
+
+    }).join('');
+
+  return base(
+    site.name,
+    `
+<div class="public">
+
+<div class="publichead">
+
+<div class="brand">
+لم<span>س</span>ة
+</div>
+
+${
+ site.logo_url
+ ? `
+ <img
+ src="${escapeHTML(site.logo_url)}"
+ style="
+ width:90px;
+ height:90px;
+ object-fit:cover;
+ border-radius:50%;
+ margin:15px">
+ `
+ : ''
+}
+
+<h1>
+${escapeHTML(site.name)}
+</h1>
+
+<p>
+${escapeHTML(site.address || '')}
+</p>
+
+<p class="small">
+${escapeHTML(site.hours || '')}
+</p>
+
+</div>
+
+${sections}
+
+<div class="footer">
+Powered by لمسة
+</div>
+
+</div>
+`
+  );
+}
