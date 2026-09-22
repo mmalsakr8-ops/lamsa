@@ -68,16 +68,326 @@ async function renew(req,env){const u=await admin(req,env);if(!u)return json({er
 async function publicMenu(req,env,sl){const s=await env.DB.prepare('SELECT * FROM sites WHERE slug=?').bind(sl).first();if(!s)return html(`<main class="wrap"><h1>الموقع غير موجود</h1></main>`,404);const d=dates(s);if(s.status!=='active'||d.expired)return html(expiredPage(s),403);const cats=await env.DB.prepare('SELECT * FROM categories WHERE site_id=? ORDER BY sort_order,id').bind(s.id).all(),items=await env.DB.prepare('SELECT * FROM menu_items WHERE site_id=? AND active=1 ORDER BY sort_order,id').bind(s.id).all();return html(menuPage(s,cats.results||[],items.results||[]))}
 function esc(x){return String(x??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
 function base(title,body,extra=''){return `<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} | لمسة</title><style>:root{--ink:#171613;--muted:#746f66;--paper:#f8f5ef;--card:#fffdf9;--line:#e9e3d8;--accent:#b4864d;--accent2:#d5ad78}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Arial,"Tahoma",sans-serif;background:var(--paper);color:var(--ink)}a{text-decoration:none;color:inherit}.wrap{max-width:1100px;margin:auto;padding:24px}.card{background:white;border-radius:22px;padding:22px;margin:16px 0;box-shadow:0 8px 30px #00000010}.btn{border:0;border-radius:14px;padding:12px 18px;cursor:pointer;background:#222;color:#fff}.muted{color:#777}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}input,textarea,select{width:100%;box-sizing:border-box;padding:12px;border:1px solid #ddd;border-radius:12px;margin:6px 0 12px}button{font:inherit}.top{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.danger{background:#8d2f2f}.notice{padding:14px;border-radius:14px;background:#fff1c9}.item{padding:14px 0;border-bottom:1px solid #eee}.price{font-weight:800}.print{position:fixed;bottom:20px;left:20px}.home-shell{overflow:hidden;background:var(--paper)}.site-nav{max-width:1200px;margin:auto;padding:24px 34px;display:flex;align-items:center;justify-content:space-between;gap:24px}.brand{display:flex;align-items:center;gap:10px}.brand-mark{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:var(--ink);color:#fff;font-weight:900;font-size:22px}.brand b{display:block;font-size:19px}.brand small{display:block;color:#9a907f;font-size:9px;letter-spacing:3px;margin-top:2px}.site-nav nav{display:flex;gap:30px;color:#6e675d;font-size:14px}.nav-actions{display:flex;align-items:center;gap:18px;font-size:14px}.login-link{color:#5d574f}.nav-cta,.primary-cta{background:var(--ink);color:#fff;border-radius:14px;padding:13px 20px;font-weight:800}.hero-section{max-width:1200px;margin:auto;min-height:650px;padding:58px 34px 70px;display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:30px}.hero-copy{padding-right:20px}.eyebrow,.section-kicker{color:#a27645;font-size:11px;letter-spacing:2px;font-weight:900}.eyebrow span{display:inline-grid;place-items:center;width:25px;height:25px;border-radius:50%;background:#eee4d4;margin-left:7px}.hero-copy h1{font-size:clamp(48px,6vw,78px);line-height:1.02;letter-spacing:-3px;margin:22px 0 20px}.hero-copy h1 em{font-style:normal;color:#a27645}.hero-copy>p{max-width:560px;color:var(--muted);font-size:18px;line-height:2}.hero-actions{display:flex;align-items:center;gap:14px;margin-top:28px}.primary-cta{display:inline-flex;align-items:center;gap:22px}.primary-cta span{font-size:20px}.ghost-cta{padding:13px 16px;color:#5d574f}.hero-trust{display:flex;flex-wrap:wrap;gap:18px;margin-top:25px;color:#777066;font-size:12px}.hero-visual{position:relative;height:570px;display:flex;align-items:center;justify-content:center}.device-laptop{width:470px;height:310px;border:10px solid #252421;border-radius:20px;background:#222;box-shadow:0 30px 70px #6d573b2b;transform:perspective(1000px) rotateY(-7deg) rotateX(2deg);padding:8px}.screen{height:100%;border-radius:10px;background:#f4efe6;padding:20px}.screen-top{display:flex;justify-content:space-between;color:#71685c;font-weight:800}.dot{width:8px;height:8px;background:#b4864d;border-radius:50%}.food-banner{margin-top:18px;height:100px;border-radius:16px;background:linear-gradient(115deg,#28251f,#7b6041);color:white;padding:18px;display:flex;justify-content:space-between;align-items:flex-end}.food-banner small{display:block;opacity:.7}.food-banner strong{display:block;font-size:22px;margin-top:5px}.menu-lines{margin-top:18px}.menu-lines div{display:grid;grid-template-columns:18px 1fr auto;gap:10px;padding:10px 0;border-bottom:1px solid #ddd5c9}.menu-lines i{width:13px;height:13px;border-radius:50%;background:#c69b68}.device-phone{position:absolute;right:18px;bottom:40px;width:178px;height:350px;background:#171614;border:7px solid #242321;border-radius:30px;padding:6px;box-shadow:0 25px 50px #0004;transform:rotate(6deg)}.phone-screen{height:100%;border-radius:22px;background:#f8f4eb;padding:16px 12px;overflow:hidden}.phone-notch{width:70px;height:12px;background:#161513;border-radius:0 0 10px 10px;margin:-16px auto 14px}.mini-logo{text-align:center;font-weight:900;color:#80603c}.mini-photo{height:85px;border-radius:14px;background:linear-gradient(135deg,#9d7a4e,#332b21);margin:14px 0}.phone-screen h4{margin:8px 0}.mini-item{display:flex;align-items:center;gap:6px;background:white;border-radius:10px;padding:8px;margin:6px 0;font-size:9px}.mini-item strong{margin-right:auto}.qr-chip{margin-top:10px;text-align:center;background:#222;color:white;border-radius:9px;padding:7px;font-size:10px}.float-card{position:absolute;background:#fffdf9;border:1px solid #eee5d8;border-radius:16px;box-shadow:0 18px 40px #00000012;padding:12px;display:flex;align-items:center;gap:9px}.float-card small{display:block;color:#8a8379;font-size:9px;margin-top:2px}.float-qr{left:20px;top:105px}.qr-icon{font-size:24px}.float-free{right:0;top:20px}.float-free>b{font-size:26px;color:#a27645}.float-free span{font-size:10px;color:#777}.glow{position:absolute;border-radius:50%;filter:blur(5px);opacity:.55}.g1{width:260px;height:260px;background:#ead7b9;right:50px;top:100px}.g2{width:180px;height:180px;background:#e5d5c2;left:30px;bottom:50px}.device-laptop,.device-phone,.float-card{z-index:2}.social-strip{max-width:1200px;margin:auto;padding:18px 34px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;justify-content:center;gap:20px;color:#827a6e;font-size:11px}.social-strip i{width:4px;height:4px;border-radius:50%;background:#bda17f;align-self:center}.section{max-width:1200px;margin:auto;padding:105px 34px}.section-heading{display:flex;justify-content:space-between;align-items:end;gap:40px;margin-bottom:45px}.section-heading h2,.final-cta h2{font-size:clamp(34px,4vw,55px);letter-spacing:-2px;margin:12px 0}.section-heading p{max-width:360px;color:var(--muted);line-height:1.9}.centered{text-align:center;display:block}.centered p{margin:0 auto}.design-stage{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;align-items:end}.design-card{background:#fffdf9;border:1px solid var(--line);border-radius:24px;padding:12px;transition:.25s;position:relative}.design-card:hover{transform:translateY(-7px);box-shadow:0 20px 50px #00000012}.dc-b{transform:translateY(-20px)}.dc-b:hover{transform:translateY(-27px)}.dc-top{font-size:10px;color:#9a8d7b;padding:7px}.dc-photo{height:250px;border-radius:17px}.photo-a{background:linear-gradient(140deg,#34271e,#b3875d 55%,#efe0c9)}.photo-b{background:linear-gradient(145deg,#1f211e,#6f765e 50%,#d7c4a0)}.photo-c{background:linear-gradient(145deg,#eee6d8,#b9a083 45%,#4a4239)}.photo-d{background:linear-gradient(145deg,#262525,#b45f3d 50%,#ead8c5)}.design-card h3{margin:14px 4px 4px}.design-card>span{color:#91887b;font-size:11px;margin-right:4px}.featured-tag{position:absolute;top:20px;left:20px;background:#fff;color:#4b4135;border-radius:20px;padding:7px 10px;font-size:9px;font-weight:800}.design-more{display:flex;justify-content:space-between;align-items:center;margin-top:25px;color:#8b8174;font-size:12px}.design-more a{color:#a27645;font-weight:800}.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.step{padding:30px;border-top:1px solid #dcd4c8;position:relative}.step>span{position:absolute;left:30px;top:30px;color:#b2a797;font-size:10px}.step-icon{width:55px;height:55px;border-radius:18px;background:#eee6da;display:grid;place-items:center;font-size:22px;color:#8e653f}.step h3{margin:25px 0 10px;font-size:22px}.step p{color:var(--muted);line-height:1.9}.step.active{background:#fffdf9;border-radius:22px;box-shadow:0 18px 50px #0000000b}.features{padding-top:30px}.feature-panel{background:#20201d;color:#fff;border-radius:34px;padding:65px;display:grid;grid-template-columns:.9fr 1.1fr;gap:70px}.feature-panel .section-kicker{color:#d2a96f}.feature-panel h2{font-size:45px;line-height:1.2;margin:15px 0}.feature-panel p{color:#aaa69e;line-height:1.9}.primary-cta.dark{background:#f5eadb;color:#222;margin-top:15px}.feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:35px}.feature-grid>div{border-top:1px solid #3a3934;padding-top:18px}.feature-grid b{color:#c9a678;font-size:11px}.feature-grid h3{margin:12px 0 5px}.feature-grid p{font-size:12px;margin:0}.final-cta{max-width:1200px;margin:80px auto 0;padding:70px 34px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:30px}.final-cta p{color:var(--muted)}.home-footer{max-width:1200px;margin:auto;padding:25px 34px 45px;display:flex;align-items:center;gap:25px;color:#8b8377;font-size:11px}.home-footer .brand{color:#222}.home-footer>span{margin-right:auto}.app-area{max-width:900px;margin:20px auto 70px;padding:50px 24px;border-top:1px solid var(--line)}.app-heading{text-align:center;margin-bottom:30px}.app-heading h2{font-size:34px;margin:8px}.app-heading p{color:#777}@media(max-width:850px){.site-nav{padding:18px 20px}.site-nav nav{display:none}.nav-actions{gap:8px}.login-link{font-size:12px}.nav-cta{padding:10px 13px}.hero-section{grid-template-columns:1fr;padding:45px 20px;min-height:auto}.hero-copy{padding:0}.hero-copy h1{font-size:50px}.hero-visual{height:450px;transform:scale(.9)}.device-laptop{width:390px;height:260px}.device-phone{right:0;bottom:10px;width:150px;height:300px}.float-free{right:5px}.float-qr{left:0;top:80px}.social-strip{overflow:hidden;white-space:nowrap;justify-content:flex-start}.section{padding:75px 20px}.section-heading{display:block}.section-heading p{margin-top:15px}.design-stage{grid-template-columns:1fr 1fr}.dc-b{transform:none}.steps{grid-template-columns:1fr}.feature-panel{grid-template-columns:1fr;padding:35px 25px;gap:35px}.feature-panel h2{font-size:35px}.final-cta{margin-top:40px;padding:60px 20px;display:block}.final-cta .primary-cta{margin-top:25px}.home-footer{padding:25px 20px;flex-wrap:wrap}.home-footer>span{margin-right:0}}@media(max-width:520px){.hero-copy h1{font-size:43px;letter-spacing:-2px}.hero-copy>p{font-size:15px}.hero-actions{align-items:stretch;flex-direction:column}.hero-trust{gap:9px;font-size:10px}.hero-visual{height:390px;transform:scale(.72);transform-origin:center}.design-stage{grid-template-columns:1fr}.dc-photo{height:210px}.feature-grid{grid-template-columns:1fr}.home-footer p{width:100%}}@media print{.print{display:none}body{background:white}.wrap{max-width:none}.card{box-shadow:none}}${extra}</style></head><body>${body}</body></html>`}
+function authPage(mode){
+  const isLogin=mode==='login';
+
+  return base(
+    isLogin?'تسجيل الدخول':'إنشاء حساب',
+    `<div class="auth-page">
+      <div class="auth-card">
+        <a href="/" class="auth-logo">✦ لمسة <small>LAMSA</small></a>
+
+        <div class="auth-kicker">${isLogin?'WELCOME BACK':'START WITH LAMSA'}</div>
+
+        <h1>${isLogin?'أهلاً بيك من جديد 👋':'ابدأ لمستك ✨'}</h1>
+
+        <p class="auth-sub">
+          ${isLogin
+            ?'سجّل دخولك لإدارة موقعك ومنيو مطعمك.'
+            :'أنشئ حسابك وابدأ موقع مطعمك أو الكافيه مجانًا.'}
+        </p>
+
+        <form id="authForm">
+          ${isLogin
+            ?`
+              <label>البريد الإلكتروني أو رقم الهاتف</label>
+              <input id="authLogin" autocomplete="username" placeholder="example@email.com">
+
+              <label>كلمة المرور</label>
+              <input id="authPassword" type="password" autocomplete="current-password" placeholder="كلمة المرور">
+
+              <button class="auth-primary" type="submit">
+                دخول إلى حسابي <span>←</span>
+              </button>
+            `
+            :`
+              <label>الاسم</label>
+              <input id="authName" autocomplete="name" placeholder="اسمك">
+
+              <label>البريد الإلكتروني</label>
+              <input id="authEmail" type="email" autocomplete="email" placeholder="example@email.com">
+
+              <label>رقم الهاتف</label>
+              <input id="authPhone" type="tel" autocomplete="tel" placeholder="01xxxxxxxxx">
+
+              <label>كلمة المرور</label>
+              <input id="authPassword" type="password" autocomplete="new-password" placeholder="8 أحرف أو أكثر">
+
+              <button class="auth-primary" type="submit">
+                إنشاء حسابي <span>←</span>
+              </button>
+            `}
+        </form>
+
+        <div id="authMessage" class="auth-message"></div>
+
+        <div class="auth-switch">
+          ${isLogin
+            ?`لسه معندكش حساب؟ <a href="/register">أنشئ حسابك مجانًا</a>`
+            :`عندك حساب بالفعل؟ <a href="/login">تسجيل الدخول</a>`}
+        </div>
+
+        <a href="/" class="auth-back">← الرجوع للموقع</a>
+      </div>
+    </div>
+
+    <style>
+      .auth-page{
+        min-height:100vh;
+        display:grid;
+        place-items:center;
+        padding:35px 18px;
+        background:
+          radial-gradient(circle at 15% 15%,#ead8bd 0,transparent 28%),
+          radial-gradient(circle at 85% 85%,#e5d8c8 0,transparent 30%),
+          #f8f5ef;
+      }
+
+      .auth-card{
+        width:min(100%,480px);
+        background:#fffdf9;
+        border:1px solid #e9e0d5;
+        border-radius:30px;
+        padding:34px;
+        box-shadow:0 25px 80px #4b321518;
+      }
+
+      .auth-logo{
+        display:inline-flex;
+        align-items:center;
+        gap:8px;
+        font-size:24px;
+        font-weight:900;
+        color:#25221e;
+      }
+
+      .auth-logo small{
+        font-size:9px;
+        letter-spacing:3px;
+        color:#a27645;
+        align-self:flex-end;
+        margin-bottom:3px;
+      }
+
+      .auth-kicker{
+        margin-top:38px;
+        color:#a27645;
+        font-size:10px;
+        letter-spacing:2px;
+        font-weight:900;
+      }
+
+      .auth-card h1{
+        font-size:40px;
+        margin:10px 0 7px;
+        letter-spacing:-1px;
+      }
+
+      .auth-sub{
+        color:#746f66;
+        line-height:1.9;
+        margin:0 0 25px;
+      }
+
+      .auth-card label{
+        display:block;
+        font-size:13px;
+        font-weight:800;
+        margin:13px 0 6px;
+        color:#39342e;
+      }
+
+      .auth-card input{
+        width:100%;
+        box-sizing:border-box;
+        padding:14px 15px;
+        border:1px solid #ddd3c7;
+        border-radius:14px;
+        background:#fff;
+        color:#222;
+        font:inherit;
+        outline:none;
+      }
+
+      .auth-card input:focus{
+        border-color:#b4864d;
+        box-shadow:0 0 0 3px #b4864d18;
+      }
+
+      .auth-primary{
+        width:100%;
+        border:0;
+        border-radius:15px;
+        padding:15px 18px;
+        margin-top:20px;
+        background:#211f1c;
+        color:#fff;
+        font:inherit;
+        font-weight:900;
+        cursor:pointer;
+      }
+
+      .auth-primary span{
+        float:left;
+        font-size:20px;
+      }
+
+      .auth-message{
+        min-height:20px;
+        margin-top:15px;
+        text-align:center;
+        color:#9a392e;
+        font-size:13px;
+      }
+
+      .auth-switch{
+        margin-top:20px;
+        padding-top:20px;
+        border-top:1px solid #eee5da;
+        text-align:center;
+        color:#777066;
+        font-size:13px;
+      }
+
+      .auth-switch a{
+        color:#9b6d3e;
+        font-weight:900;
+      }
+
+      .auth-back{
+        display:block;
+        text-align:center;
+        margin-top:20px;
+        color:#8a8176;
+        font-size:12px;
+      }
+
+      @media(max-width:520px){
+        .auth-card{
+          padding:26px 20px;
+          border-radius:24px;
+        }
+
+        .auth-card h1{
+          font-size:34px;
+        }
+      }
+    </style>
+
+    <script>
+      const form=document.getElementById('authForm');
+      const msg=document.getElementById('authMessage');
+
+      form.addEventListener('submit',async(e)=>{
+        e.preventDefault();
+
+        const button=form.querySelector('button');
+        button.disabled=true;
+        button.style.opacity='.6';
+        msg.textContent='جاري التنفيذ...';
+
+        try{
+          const payload=${isLogin
+            ?`{
+                login:document.getElementById('authLogin').value,
+                password:document.getElementById('authPassword').value
+              }`
+            :`{
+                name:document.getElementById('authName').value,
+                email:document.getElementById('authEmail').value,
+                phone:document.getElementById('authPhone').value,
+                password:document.getElementById('authPassword').value
+              }`};
+
+          const response=await fetch(
+            '${isLogin?'/api/login':'/api/register'}',
+            {
+              method:'POST',
+              headers:{'content-type':'application/json'},
+              credentials:'same-origin',
+              body:JSON.stringify(payload)
+            }
+          );
+
+          const data=await response.json().catch(()=>({}));
+
+          if(!response.ok){
+            throw new Error(data.error||'حدث خطأ، حاول مرة أخرى.');
+          }
+
+          location.href='/dashboard';
+
+        }catch(error){
+          msg.textContent=error.message;
+          button.disabled=false;
+          button.style.opacity='1';
+        }
+      });
+    </script>`
+  );
+}
+```js
+function dashboardPage(){
+  return base(
+    'لوحة التحكم',
+    `<div id="app" class="app-area"></div>
+    <script>
+      const originalStart=async()=>{
+        try{
+          const m=await fetch('/api/me',{
+            credentials:'same-origin'
+          });
+
+          const data=await m.json().catch(()=>({}));
+
+          if(!data.user){
+            location.href='/login';
+            return;
+          }
+
+          start();
+        }catch(e){
+          location.href='/login';
+        }
+      };
+    </script>
+    <script>${client()}</script>`
+  );
+}
+```
+
+```js
 function home(){return base('لمسة',`<div class="home-shell">
-<header class="site-nav"><a class="brand" href="/"><span class="brand-mark">L</span><span><b>لمسة</b><small>LAMSA</small></span></a><nav><a href="#designs">التصميمات</a><a href="#how">كيف تعمل؟</a><a href="#features">المميزات</a></nav><div class="nav-actions"><a class="login-link" href="#app">تسجيل الدخول</a><a class="nav-cta" href="#app">ابدأ مجانًا</a></div></header>
-<section class="hero-section"><div class="hero-copy"><div class="eyebrow"><span>✦</span> منصة مطاعم وكافيهات عربية</div><h1>خلّي مطعمك<br><em>له لمسة مختلفة.</em></h1><p>اعمل موقعك والمنيو الرقمي بنفسك، اختار التصميم اللي يناسبك، وانشره لعملائك برابط وQR في دقائق.</p><div class="hero-actions"><a class="primary-cta" href="#app">ابدأ موقعك مجانًا <span>←</span></a><a class="ghost-cta" href="#designs">شوف التصميمات <span>⌄</span></a></div><div class="hero-trust"><span>✓ 30 يوم مجانًا</span><span>✓ تعديل المنيو بنفسك</span><span>✓ QR جاهز</span></div></div><div class="hero-visual"><div class="glow g1"></div><div class="glow g2"></div><div class="device-laptop"><div class="screen"><div class="screen-top"><span>لمسة</span><span class="dot"></span></div><div class="food-banner"><div><small>مطعم اليوم</small><strong>طعم يفضل في الذاكرة</strong></div><span>✦</span></div><div class="menu-lines"><div><i></i><b>برجر لمسة</b><strong>١٨٠ ج</strong></div><div><i></i><b>باستا كريمي</b><strong>١٦٠ ج</strong></div><div><i></i><b>موهيتو فراولة</b><strong>٨٥ ج</strong></div></div></div></div><div class="device-phone"><div class="phone-screen"><div class="phone-notch"></div><div class="mini-logo">لمسة</div><div class="mini-photo"></div><h4>قائمة الطعام</h4><div class="mini-item"><span>🍔</span><b>برجر كلاسيك</b><strong>١٨٠</strong></div><div class="mini-item"><span>🥤</span><b>موهيتو</b><strong>٨٥</strong></div><div class="qr-chip">▦ QR</div></div></div><div class="float-card float-qr"><span class="qr-icon">▦</span><div><b>QR Menu</b><small>جاهز للمشاركة</small></div></div><div class="float-card float-free"><b>30</b><span>يوم<br>مجانًا</span></div></div></section>
+<header class="site-nav"><a class="brand" href="/"><span class="brand-mark">L</span><span><b>لمسة</b><small>LAMSA</small></span></a><nav><a href="#designs">التصميمات</a><a href="#how">كيف تعمل؟</a><a href="#features">المميزات</a></nav><div class="nav-actions"><a class="login-link" href="/login">تسجيل الدخول</a><a class="nav-cta" href="/register">ابدأ مجانًا</a></div></header>
+<section class="hero-section"><div class="hero-copy"><div class="eyebrow"><span>✦</span> منصة مطاعم وكافيهات عربية</div><h1>خلّي مطعمك<br><em>له لمسة مختلفة.</em></h1><p>اعمل موقعك والمنيو الرقمي بنفسك، اختار التصميم اللي يناسبك، وانشره لعملائك برابط وQR في دقائق.</p><div class="hero-actions"><a class="primary-cta" href="/register">ابدأ موقعك مجانًا <span>←</span></a><a class="ghost-cta" href="#designs">شوف التصميمات <span>⌄</span></a></div><div class="hero-trust"><span>✓ 30 يوم مجانًا</span><span>✓ تعديل المنيو بنفسك</span><span>✓ QR جاهز</span></div></div><div class="hero-visual"><div class="glow g1"></div><div class="glow g2"></div><div class="device-laptop"><div class="screen"><div class="screen-top"><span>لمسة</span><span class="dot"></span></div><div class="food-banner"><div><small>مطعم اليوم</small><strong>طعم يفضل في الذاكرة</strong></div><span>✦</span></div><div class="menu-lines"><div><i></i><b>برجر لمسة</b><strong>١٨٠ ج</strong></div><div><i></i><b>باستا كريمي</b><strong>١٦٠ ج</strong></div><div><i></i><b>موهيتو فراولة</b><strong>٨٥ ج</strong></div></div></div></div><div class="device-phone"><div class="phone-screen"><div class="phone-notch"></div><div class="mini-logo">لمسة</div><div class="mini-photo"></div><h4>قائمة الطعام</h4><div class="mini-item"><span>🍔</span><b>برجر كلاسيك</b><strong>١٨٠</strong></div><div class="mini-item"><span>🥤</span><b>موهيتو</b><strong>٨٥</strong></div><div class="qr-chip">▦ QR</div></div></div><div class="float-card float-qr"><span class="qr-icon">▦</span><div><b>QR Menu</b><small>جاهز للمشاركة</small></div></div><div class="float-card float-free"><b>30</b><span>يوم<br>مجانًا</span></div></div></section>
 <section class="social-strip"><span>صمّم حضور مطعمك بشكل يليق بيه</span><i></i><span>منيو رقمي</span><i></i><span>موقع مطعم</span><i></i><span>QR سريع</span></section>
-<section id="designs" class="section showcase"><div class="section-heading"><div><span class="section-kicker">DESIGN LIBRARY</span><h2>اختار الستايل اللي يشبهك.</h2></div><p>مجموعة تصميمات معمولة للمطاعم والكافيهات، والتصميمات الكاملة تفتح بعد التجديد.</p></div><div class="design-stage"><div class="design-card dc-a"><div class="dc-top">01</div><div class="dc-photo photo-a"></div><h3>ليالي</h3><span>دافئ • راقي</span></div><div class="design-card dc-b featured"><div class="dc-top">02</div><div class="dc-photo photo-b"></div><h3>رويال</h3><span>فاخر • عصري</span><div class="featured-tag">الأكثر لفتًا</div></div><div class="design-card dc-c"><div class="dc-top">03</div><div class="dc-photo photo-c"></div><h3>كافيه</h3><span>هادئ • بسيط</span></div><div class="design-card dc-d"><div class="dc-top">04</div><div class="dc-photo photo-d"></div><h3>مودرن</h3><span>نظيف • جريء</span></div></div><div class="design-more"><span>+56 تصميم إضافي</span><a href="#app">ابدأ واختر تصميمك ←</a></div></section>
+<section id="designs" class="section showcase"><div class="section-heading"><div><span class="section-kicker">DESIGN LIBRARY</span><h2>اختار الستايل اللي يشبهك.</h2></div><p>مجموعة تصميمات معمولة للمطاعم والكافيهات، والتصميمات الكاملة تفتح بعد التجديد.</p></div><div class="design-stage"><div class="design-card dc-a"><div class="dc-top">01</div><div class="dc-photo photo-a"></div><h3>ليالي</h3><span>دافئ • راقي</span></div><div class="design-card dc-b featured"><div class="dc-top">02</div><div class="dc-photo photo-b"></div><h3>رويال</h3><span>فاخر • عصري</span><div class="featured-tag">الأكثر لفتًا</div></div><div class="design-card dc-c"><div class="dc-top">03</div><div class="dc-photo photo-c"></div><h3>كافيه</h3><span>هادئ • بسيط</span></div><div class="design-card dc-d"><div class="dc-top">04</div><div class="dc-photo photo-d"></div><h3>مودرن</h3><span>نظيف • جريء</span></div></div><div class="design-more"><span>+56 تصميم إضافي</span><a href="/register">ابدأ واختر تصميمك ←</a></div></section>
 <section id="how" class="section how"><div class="section-heading centered"><span class="section-kicker">HOW IT WORKS</span><h2>من فكرة لموقع شغال في 3 خطوات.</h2><p>من غير تعقيد، ومن غير ما تحتاج تكون مبرمج.</p></div><div class="steps"><div class="step"><span>01</span><div class="step-icon">✦</div><h3>اختار التصميم</h3><p>اختار الشكل المناسب لهوية مطعمك من مكتبة التصميمات.</p></div><div class="step active"><span>02</span><div class="step-icon">☷</div><h3>اعمل منيوك</h3><p>ضيف الأقسام والأصناف والأسعار والصور وعدّلها وقت ما تحب.</p></div><div class="step"><span>03</span><div class="step-icon">⌁</div><h3>انشر وشارك</h3><p>خد رابط ثابت وQR وشاركه مع زباينك بسهولة.</p></div></div></section>
-<section id="features" class="section features"><div class="feature-panel"><div><span class="section-kicker">BUILT FOR RESTAURANTS</span><h2>كل اللي مطعمك محتاجه<br>في مكان واحد.</h2><p>من أول شكل الموقع لحد المنيو والـQR. وإنت صاحب القرار في كل تفصيلة.</p><a class="primary-cta dark" href="#app">ابدأ مجانًا <span>←</span></a></div><div class="feature-grid"><div><b>01</b><h3>تعديل سهل</h3><p>الأسعار والأصناف في إيدك.</p></div><div><b>02</b><h3>QR ثابت</h3><p>نفس الرابط حتى مع تحديث المنيو.</p></div><div><b>03</b><h3>PDF للطباعة</h3><p>نسخة مرتبة للطباعة والحفظ.</p></div><div><b>04</b><h3>30 يوم مجانًا</h3><p>جرّب قبل الاشتراك.</p></div></div></div></section>
-<section class="final-cta"><div><span>جاهز تعمل حاجة مختلفة؟</span><h2>موقعك يبدأ من هنا ✨</h2><p>ابدأ مجانًا، وابني حضور يليق بمطعمك.</p></div><a class="primary-cta" href="#app">ابدأ موقعك مجانًا <span>←</span></a></section>
+<section id="features" class="section features"><div class="feature-panel"><div><span class="section-kicker">BUILT FOR RESTAURANTS</span><h2>كل اللي مطعمك محتاجه<br>في مكان واحد.</h2><p>من أول شكل الموقع لحد المنيو والـQR. وإنت صاحب القرار في كل تفصيلة.</p><a class="primary-cta dark" href="/register">ابدأ مجانًا <span>←</span></a></div><div class="feature-grid"><div><b>01</b><h3>تعديل سهل</h3><p>الأسعار والأصناف في إيدك.</p></div><div><b>02</b><h3>QR ثابت</h3><p>نفس الرابط حتى مع تحديث المنيو.</p></div><div><b>03</b><h3>PDF للطباعة</h3><p>نسخة مرتبة للطباعة والحفظ.</p></div><div><b>04</b><h3>30 يوم مجانًا</h3><p>جرّب قبل الاشتراك.</p></div></div></div></section>
+<section class="final-cta"><div><span>جاهز تعمل حاجة مختلفة؟</span><h2>موقعك يبدأ من هنا ✨</h2><p>ابدأ مجانًا، وابني حضور يليق بمطعمك.</p></div><a class="primary-cta" href="/register">ابدأ موقعك مجانًا <span>←</span></a></section>
 <footer class="home-footer"><div class="brand"><span class="brand-mark">L</span><span><b>لمسة</b><small>LAMSA</small></span></div><p>منيو وموقع مطعمك، بلمسة واحدة.</p><span>الدعم: ${SUPPORT_PHONE}</span></footer>
-<div id="app" class="app-area"><div class="app-heading"><span class="section-kicker">YOUR ACCOUNT</span><h2>ابدأ من هنا</h2><p>سجّل دخولك أو أنشئ حسابك، وهنكمّل من جوه المنصة.</p></div></div></div><script>${client()}</script>`)}
+<div id="app" class="app-area"><div class="app-heading"><span class="section-kicker">YOUR ACCOUNT</span><h2>ابدأ من هنا</h2><p>سجّل دخولك أو أنشئ حسابك، وهنكمّل من جوه المن
+```html
+<div class="account-cta">
+  <div class="app-heading">
+    <span class="section-kicker">YOUR ACCOUNT</span>
+    <h2>ابدأ من هنا</h2>
+    <p>سجّل دخولك أو أنشئ حسابك، وهنكمّل من جوه المنصة.</p>
+
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:22px">
+      <a class="primary-cta" href="/register">
+        إنشاء حساب مجاني <span>←</span>
+      </a>
+
+      <a class="ghost-cta" href="/login">
+        تسجيل الدخول
+      </a>
+    </div>
+  </div>
+</div>
+</div>`)
+```
+
 function client(){return `
 const $=s=>document.querySelector(s);
 const api=async(p,o={})=>{const r=await fetch(p,{...o,headers:{'content-type':'application/json',...(o.headers||{})}});const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||'حدث خطأ');return j};
