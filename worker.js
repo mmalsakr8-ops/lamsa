@@ -1,0 +1,5 @@
+export default {
+  async fetch(request, env) {
+    return new Response(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LAMSA | لمسة</title><style>body{margin:0;font-family:Arial,sans-serif;background:#111;color:#fff;text-align:center}.wrap{max-width:900px;margin:auto;padding:70px 20px}.logo{font-size:52px;font-weight:800}.tag{color:#d7b56d;font-size:20px}.card{margin:35px auto;padding:30px;border:1px solid #333;border-radius:22px;background:#191919}button{border:0;border-radius:14px;padding:14px 24px;background:#d7b56d;color:#111;font-weight:700;font-size:16px}</style></head><body><main class="wrap"><div class="logo">LAMSA <span class="tag">لمسة</span></div><h1>ابني موقعك بلمسة مختلفة ✨</h1><p>منصة احترافية لإنشاء مواقع ومنيوهات المطاعم والكافيهات بسهولة.</p><div class="card"><h2>موقعك يبدأ من هنا ✨</h2><p>اختار التصميم، أضف بيانات مطعمك ومنيوك، وخلّي عملاءك يوصلوا لك بسهولة.</p><button>ابدأ إنشاء موقعك</button></div><small>© 2026 LAMSA — لمسة</small></main></body></html>`,{headers:{"content-type":"text/html;charset=UTF-8"}})
+  }
+};
