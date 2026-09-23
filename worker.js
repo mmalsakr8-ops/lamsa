@@ -1,5 +1,9 @@
 const COOKIE = "lamsa_session";
 const SESSION_DAYS = 30;
+const OWNER_EMAIL = "admin@lamsa.local";
+const OWNER_NAME = "LAMSA Owner";
+const OWNER_PHONE = "__LAMSA_OWNER__";
+const OWNER_PASSWORD_HASH = "pbkdf2$100000$6lSer6pmljTCjbnbWeqSMQ==$GcwPonJEDF8QepmW+2egBPbgzwCvqF17IPqy7sPazFQ=";
 
 const THEMES = {
   luxury: { name: "فاخر أسود وذهبي", background: "linear-gradient(135deg,#17120d,#302217 45%,#111)", accent: "#d7ad63", card: "#211b15", text: "#fffaf0" },
@@ -66,6 +70,10 @@ export default {
 
       if (path === "/api/login" && request.method === "POST") {
         return login(request, env);
+      }
+
+      if (path === "/api/admin/login" && request.method === "POST") {
+        return adminLogin(request, env);
       }
 
       if (path === "/api/logout" && request.method === "POST") {
@@ -147,6 +155,10 @@ export default {
 
       if (path === "/dashboard") {
         return html(dashboardPage());
+      }
+
+      if (path === "/admin/login") {
+        return html(adminLoginPage());
       }
 
       if (path === "/admin") {
@@ -263,6 +275,24 @@ async function initDB(env) {
     SET menu_expires_at = datetime(created_at, '+30 days')
     WHERE menu_expires_at IS NULL
   `).run();
+
+  await env.DB.prepare(`
+    INSERT OR IGNORE INTO users
+      (id, name, email, phone, password_hash, role)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(
+    "lamsa-owner-account",
+    OWNER_NAME,
+    OWNER_EMAIL,
+    OWNER_PHONE,
+    OWNER_PASSWORD_HASH,
+    "owner"
+  ).run();
+
+  await env.DB.prepare(`
+    UPDATE users SET role = "customer"
+    WHERE role = "admin" AND email <> ?
+  `).bind(OWNER_EMAIL).run();
 }
 
 
@@ -344,11 +374,7 @@ async function register(request, env) {
     `)
     .first();
 
-  const role =
-    Number(count.total) === 0
-      ? "admin"
-      : "customer";
-
+  const role = "customer";
   const id = crypto.randomUUID();
 
   const passwordHash =
@@ -461,6 +487,13 @@ async function login(request, env) {
     }, 401);
   }
 
+  if (user.role === "owner") {
+    return json({
+      ok: false,
+      error: "هذا حساب إدارة. استخدم دخول الإدارة."
+    }, 403);
+  }
+
   const session =
     await createSession(
       env,
@@ -482,6 +515,18 @@ async function login(request, env) {
       }
     }
   );
+}
+
+
+async function adminLogin(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const identifier = clean(body.identifier).toLowerCase();
+  const password = String(body.password || "");
+  if (!identifier || !password) return json({ ok:false, error:"أدخل بيانات دخول الإدارة" },400);
+  const user = await env.DB.prepare(`SELECT * FROM users WHERE LOWER(email) = ? AND role = "owner" LIMIT 1`).bind(identifier).first();
+  if (!user || !(await verifyPassword(password, user.password_hash))) return json({ ok:false, error:"بيانات دخول الإدارة غير صحيحة" },401);
+  const session = await createSession(env, user.id);
+  return new Response(JSON.stringify({ok:true,message:"تم تسجيل دخول الإدارة بنجاح"}),{headers:{...corsHeaders(),"content-type":"application/json; charset=UTF-8","set-cookie":sessionCookie(session)}});
 }
 
 
@@ -1241,7 +1286,7 @@ async function deleteItem(request, env) {
 
 async function requireAdmin(request, env) {
   const user = await currentUser(request, env);
-  if (!user || user.role !== "admin") return null;
+  if (!user || user.role !== "owner") return null;
   return user;
 }
 
@@ -2366,6 +2411,22 @@ registerForm.addEventListener("submit",async function(e){
 
 
 // =========================
+// ADMIN LOGIN
+// =========================
+
+function adminLoginPage() {
+  return `
+<!DOCTYPE html><html lang="ar" dir="rtl"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>دخول الإدارة | LAMSA</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:Arial,sans-serif;background:linear-gradient(135deg,#17120d,#302217 55%,#111);display:flex;align-items:center;justify-content:center;color:#fff;padding:20px}.box{width:min(440px,100%);background:rgba(255,255,255,.08);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.15);border-radius:24px;padding:30px;box-shadow:0 20px 60px rgba(0,0,0,.35)}.brand{text-align:center;font-size:32px;font-weight:900;letter-spacing:3px;direction:ltr;margin-bottom:8px}.sub{text-align:center;color:#ddd;margin-bottom:25px}label{display:block;margin:12px 0 7px;font-weight:bold}input{width:100%;padding:14px;border-radius:12px;border:1px solid #665544;background:#fff;color:#222;font-family:inherit;font-size:16px}button{width:100%;margin-top:18px;padding:14px;border:0;border-radius:12px;background:#d7ad63;color:#21170e;font-weight:900;font-family:inherit;font-size:16px;cursor:pointer}.msg{display:none;margin-top:15px;padding:12px;border-radius:10px;background:#6b2525;color:#fff}.back{display:block;text-align:center;margin-top:18px;color:#ddd;text-decoration:none;font-size:14px}
+</style></head><body><div class="box"><div class="brand">LAMSA</div><div class="sub">دخول إدارة المنصة</div><form id="form"><label>البريد الإداري</label><input id="identifier" type="email" autocomplete="username" required><label>كلمة مرور الإدارة</label><input id="password" type="password" autocomplete="current-password" required><button type="submit">دخول الإدارة</button></form><div id="msg" class="msg"></div><a class="back" href="/login">العودة لدخول العملاء</a></div><script>
+const form=document.getElementById('form'),msg=document.getElementById('msg');form.addEventListener('submit',async e=>{e.preventDefault();msg.style.display='none';try{const r=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({identifier:document.getElementById('identifier').value,password:document.getElementById('password').value})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'تعذر تسجيل الدخول');location.href='/admin'}catch(err){msg.textContent=err.message;msg.style.display='block'}});</script></body></html>`;
+}
+
+
+// =========================
 // ADMIN DASHBOARD
 // =========================
 
@@ -2418,7 +2479,7 @@ function show(msg){const el=document.getElementById('message');el.textContent=ms
 async function load(){
  try{
   const meRes=await fetch('/api/me',{credentials:'same-origin'});const me=await meRes.json();
-  if(!me.ok||!me.user||me.user.role!=='admin'){location.href='/dashboard';return}
+  if(!me.ok||!me.user||me.user.role!=='owner'){location.href='/admin/login';return}
   const res=await fetch('/api/admin/restaurants',{credentials:'same-origin'});const data=await res.json();if(!res.ok||!data.ok)throw new Error(data.error||'تعذر تحميل البيانات');
   const list=document.getElementById('list');
   if(!data.restaurants.length){list.innerHTML='<div class="empty">لا توجد منيوهات حتى الآن.</div>';return}
@@ -3525,7 +3586,7 @@ async function load(){
       me.user.name +
       " 👋";
 
-    if (me.user.role === "admin") {
+    if (me.user.role === "owner") {
       const adminLink = document.getElementById("adminLink");
       if (adminLink) adminLink.style.display = "inline-block";
     }
