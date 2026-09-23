@@ -1,0 +1,17 @@
+worker(9).js -> modular files
+config.js: 1-47
+db.js: 168-265
+auth.js: 270-621
+restaurant.js: 624-720
+categories.js: 724-883
+items.js: 887-1205
+public-menu.js: 1209-1270
+restaurant-auth.js: 1273-1373
+utils.js: 1377-1445
+crypto.js: 1449-1585
+pages/home.js: 1590-1812
+pages/auth.js: 1816-2250
+pages/dashboard.js: 2254-3964
+pages/public-menu.js: 3966-4501
+pages/error-menu.js: 4503-4576
+worker.js: route dispatcher rebuilt from original lines 51-165
