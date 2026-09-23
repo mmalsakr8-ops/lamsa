@@ -234,16 +234,19 @@ async function initDB(env) {
     "INTEGER NOT NULL DEFAULT 1"
   );
 
+  // SQLite/D1 does not allow ALTER TABLE ... ADD COLUMN
+  // with a non-constant default such as CURRENT_TIMESTAMP.
+  // Keep these upgrade columns nullable, then backfill them below.
   await ensureRestaurantColumn(
     env,
     "menu_started_at",
-    "TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
+    "TEXT"
   );
 
   await ensureRestaurantColumn(
     env,
     "menu_expires_at",
-    "TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
+    "TEXT"
   );
 
   // Upgrade older restaurants once: give them a fresh 30-day period.
