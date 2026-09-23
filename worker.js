@@ -1249,8 +1249,22 @@ async function adminRestaurants(request, env) {
   const user = await requireAdmin(request, env);
   if (!user) return json({ ok: false, error: "غير مصرح" }, 403);
   const result = await env.DB.prepare(`
-    SELECT id, user_id, name, slug, menu_enabled, menu_expires_at, created_at
-    FROM restaurants ORDER BY created_at DESC
+    SELECT
+      restaurants.id,
+      restaurants.user_id,
+      restaurants.name,
+      restaurants.slug,
+      restaurants.business_type,
+      restaurants.menu_enabled,
+      restaurants.menu_expires_at,
+      restaurants.created_at,
+      users.name AS customer_name,
+      users.email AS customer_email,
+      users.phone AS customer_phone,
+      users.created_at AS customer_created_at
+    FROM restaurants
+    JOIN users ON users.id = restaurants.user_id
+    ORDER BY users.created_at DESC
   `).all();
   return json({ ok: true, restaurants: result.results || [] });
 }
@@ -1264,9 +1278,15 @@ async function adminActivateMenu(request, env) {
   if (!restaurantId) return json({ ok: false, error: "restaurant_id مطلوب" }, 400);
   const result = await env.DB.prepare(`
     UPDATE restaurants
-    SET menu_enabled = 1, menu_expires_at = datetime('now', '+' || ? || ' days')
+    SET
+      menu_enabled = 1,
+      menu_expires_at = CASE
+        WHEN menu_expires_at IS NOT NULL AND menu_expires_at > datetime('now')
+          THEN datetime(menu_expires_at, '+' || ? || ' days')
+        ELSE datetime('now', '+' || ? || ' days')
+      END
     WHERE id = ?
-  `).bind(days, restaurantId).run();
+  `).bind(days, days, restaurantId).run();
   if (!result.meta || result.meta.changes !== 1) return json({ ok: false, error: "المطعم غير موجود" }, 404);
   return json({ ok: true, message: "تم تشغيل المنيو", days });
 }
@@ -1320,11 +1340,11 @@ async function publicMenu(request, env) {
   const expired =
     Number(restaurant.menu_enabled) !== 1 ||
     (restaurant.menu_expires_at &&
-      new Date(restaurant.menu_expires_at).getTime() <= Date.now());
+      new Date(String(restaurant.menu_expires_at).replace(' ', 'T') + 'Z').getTime() <= Date.now());
 
   if (expired) {
     return html(
-      errorMenuPage("انتهت مدة تشغيل هذا المنيو. يرجى التواصل مع إدارة LAMSA لتجديده."),
+      errorMenuPage("خطأ — فترة صيانة", "نعتذر عن الانتظار، المنيو غير متاحة حاليًا. يرجى المحاولة مرة أخرى لاحقًا."),
       403
     );
   }
@@ -2391,6 +2411,7 @@ footer{text-align:center;color:#777;padding:25px 15px 35px;font-size:13px}footer
 <script>
 function esc(v){return String(v||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;')}
 function fmt(v){if(!v)return 'غير محدد';const d=new Date(v.replace(' ','T')+'Z');if(Number.isNaN(d.getTime()))return v;return d.toLocaleString('ar-EG',{dateStyle:'medium',timeStyle:'short'})}
+function typeLabel(v){return v==='cafe'?'☕ كافيه':v==='both'?'🍽️☕ مطعم وكافيه':'🍽️ مطعم'}
 function state(r){if(Number(r.menu_enabled)!==1)return ['disabled','متوقفة يدويًا'];if(r.menu_expires_at&&new Date(r.menu_expires_at.replace(' ','T')+'Z').getTime()<=Date.now())return ['expired','منتهية'];return ['active','نشطة']}
 async function call(url,body){const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)});const d=await res.json();if(!res.ok||!d.ok)throw new Error(d.error||'حدث خطأ');return d}
 function show(msg){const el=document.getElementById('message');el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',2500)}
@@ -2401,7 +2422,7 @@ async function load(){
   const res=await fetch('/api/admin/restaurants',{credentials:'same-origin'});const data=await res.json();if(!res.ok||!data.ok)throw new Error(data.error||'تعذر تحميل البيانات');
   const list=document.getElementById('list');
   if(!data.restaurants.length){list.innerHTML='<div class="empty">لا توجد منيوهات حتى الآن.</div>';return}
-  list.innerHTML=data.restaurants.map(r=>{const [cls,label]=state(r);return `<article class="card"><div class="name">${esc(r.name||'بدون اسم')}</div><div class="meta">الرابط: /menu/${esc(r.slug||'')}<br>تاريخ الإنشاء: ${fmt(r.created_at)}<br>تاريخ الانتهاء: ${fmt(r.menu_expires_at)}</div><span class="status ${cls}">${label}</span><div class="actions"><button class="renew" onclick="renew('${esc(r.id)}')">▶️ تشغيل / تجديد 30 يوم</button><button class="stop" onclick="disableMenu('${esc(r.id)}')">⏹️ إيقاف</button><button class="open" onclick="window.open('/menu/${encodeURIComponent(r.slug||'')}','_blank')">👀 فتح المنيو</button></div></article>`}).join('')
+  list.innerHTML=data.restaurants.map(r=>{const [cls,label]=state(r);return `<article class="card"><div class="name">${esc(r.name||'بدون اسم')}</div><div class="meta"><b>العميل:</b> ${esc(r.customer_name||'غير محدد')}<br><b>الهاتف:</b> ${esc(r.customer_phone||'غير محدد')}<br><b>الإيميل:</b> ${esc(r.customer_email||'غير محدد')}<br><b>نوع النشاط:</b> ${typeLabel(r.business_type)}<br><b>الرابط:</b> /menu/${esc(r.slug||'')}<br><b>تاريخ التسجيل:</b> ${fmt(r.customer_created_at||r.created_at)}<br><b>بداية الفترة المجانية:</b> ${fmt(r.customer_created_at||r.created_at)}<br><b>تاريخ الانتهاء:</b> ${fmt(r.menu_expires_at)}</div><span class="status ${cls}">${label}</span><div class="actions"><button class="renew" onclick="renew('${esc(r.id)}')">▶️ تشغيل / تجديد 30 يوم</button><button class="stop" onclick="disableMenu('${esc(r.id)}')">⏹️ إيقاف</button><button class="open" onclick="window.open('/menu/${encodeURIComponent(r.slug||'')}','_blank')">👀 فتح المنيو</button></div></article>`}).join('')
  }catch(e){document.getElementById('list').innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
 }
 async function renew(id){if(!confirm('تشغيل أو تجديد هذه المنيو لمدة 30 يوم؟'))return;try{await call('/api/admin/menu/activate',{restaurant_id:id,days:30});show('تم تشغيل/تجديد المنيو لمدة 30 يوم ✓');load()}catch(e){alert(e.message)}}
@@ -2603,6 +2624,23 @@ main{
   color:#ddd;
   line-height:1.8;
 }
+
+
+.trial-card{
+  background:#fff;
+  border:1px solid #e8e3dc;
+  border-radius:20px;
+  padding:20px;
+  margin-bottom:16px;
+  box-shadow:0 7px 25px rgba(0,0,0,.025);
+}
+.trial-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.trial-title{font-size:19px;font-weight:900}.trial-sub{font-size:13px;color:#888;margin-top:5px}
+.trial-badge{padding:8px 12px;border-radius:999px;font-size:12px;font-weight:900;background:#f1eee9;color:#665}
+.trial-badge.active{background:#e3f3e3;color:#2f7132}.trial-badge.expired{background:#fde7e7;color:#a52e2e}.trial-badge.disabled{background:#eee;color:#555}
+.trial-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:15px}
+.trial-grid>div{background:#faf8f5;border-radius:12px;padding:12px}.trial-grid small{display:block;color:#888;margin-bottom:5px}.trial-grid strong{font-size:14px}
+@media(max-width:650px){.trial-head{align-items:flex-start;flex-direction:column}.trial-grid{grid-template-columns:1fr}}
 
 .business-type-title{
   margin:8px 0 10px;
@@ -3132,6 +3170,20 @@ onclick="logout()">
 
 </section>
 
+<section class="trial-card" id="trialCard">
+  <div class="trial-head">
+    <div>
+      <div class="trial-title">🕒 فترة تشغيل المنيو</div>
+      <div class="trial-sub">30 يوم مجانية لكل حساب جديد</div>
+    </div>
+    <span class="trial-badge" id="trialBadge">جاري التحميل...</span>
+  </div>
+  <div class="trial-grid">
+    <div><small>بداية الفترة</small><strong id="trialStart">—</strong></div>
+    <div><small>تاريخ الانتهاء</small><strong id="trialEnd">—</strong></div>
+  </div>
+</section>
+
 <div class="grid">
 
 <section class="card">
@@ -3417,6 +3469,20 @@ let selectedBackground = "";
 let selectedBusinessType = "restaurant";
 
 
+function renderTrialStatus(r){
+  const badge=document.getElementById("trialBadge");
+  const start=document.getElementById("trialStart");
+  const end=document.getElementById("trialEnd");
+  if(!badge||!start||!end)return;
+  const fmtDate=v=>{if(!v)return "غير محدد";const d=new Date(String(v).replace(" ","T")+"Z");return Number.isNaN(d.getTime())?v:d.toLocaleDateString("ar-EG",{dateStyle:"medium"})};
+  start.textContent=fmtDate(r.created_at);
+  end.textContent=fmtDate(r.menu_expires_at);
+  const expired=Number(r.menu_enabled)!==1 || (r.menu_expires_at && new Date(String(r.menu_expires_at).replace(" ","T")+"Z").getTime()<=Date.now());
+  if(Number(r.menu_enabled)!==1){badge.textContent="متوقفة";badge.className="trial-badge disabled";}
+  else if(expired){badge.textContent="انتهت الفترة";badge.className="trial-badge expired";}
+  else {badge.textContent="نشطة";badge.className="trial-badge active";}
+}
+
 async function api(url, options = {}){
 
   const response =
@@ -3470,6 +3536,8 @@ async function load(){
 
     restaurant =
       restaurantData.restaurant;
+
+    renderTrialStatus(restaurant);
 
 
     document.getElementById(
@@ -4896,77 +4964,24 @@ ${sections}
 // ERROR MENU
 // =========================
 
-function errorMenuPage(message) {
+function errorMenuPage(title, message) {
   return `
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-
 <head>
-
 <meta charset="UTF-8">
-
-<meta
-name="viewport"
-content="width=device-width,initial-scale=1">
-
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>LAMSA</title>
-
 <style>
-
-body{
-  margin:0;
-  min-height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-family:Arial,sans-serif;
-  background:#f5f1eb;
-  color:#222;
-}
-
-.box{
-  text-align:center;
-  padding:30px;
-}
-
-.logo{
-  width:70px;
-  height:70px;
-  border-radius:22px;
-  background:#211d19;
-  color:#d9b06a;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  margin:0 auto 20px;
-  font-size:34px;
-  font-weight:900;
-}
-
-h1{
-  margin:0;
-}
-
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Arial,sans-serif;background:#f5f1eb;color:#222;text-align:center;padding:20px;box-sizing:border-box}
+.box{max-width:560px;padding:38px 26px;background:rgba(255,255,255,.86);border:1px solid #e7dfd5;border-radius:24px;box-shadow:0 15px 45px rgba(0,0,0,.07)}
+.logo{width:70px;height:70px;border-radius:22px;background:#211d19;color:#d9b06a;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:34px;font-weight:900}
+h1{margin:0 0 14px;font-size:27px}p{margin:0;color:#777;line-height:1.9;font-size:16px}.footer{margin-top:22px;color:#777;font-size:13px;line-height:1.8}.footer strong{display:block;color:#211d19;font-size:16px;letter-spacing:1px;direction:ltr}
 </style>
-
 </head>
-
 <body>
-
-<div class="box">
-
-<div class="logo">
-ل
-</div>
-
-<h1>
-${escapeHtml(message)}
-</h1>
-
-</div>
-
+<div class="box"><div class="logo">ل</div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p></div>
+<div class="footer"><strong>LAMSA</strong>الحقوق محفوظة بواسطة M/mohamed abdalaziem</div>
 </body>
-
-</html>
-`;
+</html>`;
 }
