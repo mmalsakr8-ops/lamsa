@@ -2,45 +2,34 @@ const COOKIE = "lamsa_session";
 const SESSION_DAYS = 30;
 
 const THEMES = {
-  luxury: {
-    name: "فاخر أسود وذهبي",
-    background: "linear-gradient(135deg,#17120d,#302217 45%,#111)",
-    accent: "#d7ad63",
-    card: "#211b15",
-    text: "#fffaf0"
-  },
+  luxury: { name: "فاخر أسود وذهبي", background: "linear-gradient(135deg,#17120d,#302217 45%,#111)", accent: "#d7ad63", card: "#211b15", text: "#fffaf0" },
+  cafe: { name: "كافيه مودرن", background: "linear-gradient(135deg,#f6efe5,#fffaf4)", accent: "#9b6b43", card: "#ffffff", text: "#2d241e" },
+  fresh: { name: "أخضر طبيعي", background: "linear-gradient(135deg,#edf5ed,#f8fbf6)", accent: "#4f7b59", card: "#ffffff", text: "#203226" },
+  modern: { name: "مودرن أبيض", background: "linear-gradient(135deg,#f2f2f2,#ffffff)", accent: "#222222", card: "#ffffff", text: "#171717" },
+  dark: { name: "دارك فاخر", background: "linear-gradient(135deg,#080808,#1c1c1c)", accent: "#ffffff", card: "#151515", text: "#ffffff" },
+  royal: { name: "رويال أزرق", background: "linear-gradient(135deg,#0b1730,#1d3d70)", accent: "#e8c66a", card: "rgba(255,255,255,.10)", text: "#fff" },
+  rose: { name: "روز ناعم", background: "linear-gradient(135deg,#fff1f5,#f8d8e3)", accent: "#a84f6b", card: "rgba(255,255,255,.88)", text: "#3c2029" },
+  ocean: { name: "أوشن", background: "linear-gradient(135deg,#062d3e,#0b687a)", accent: "#9de7e2", card: "rgba(255,255,255,.10)", text: "#f7ffff" },
+  coffee: { name: "قهوة", background: "linear-gradient(135deg,#2a1b14,#7a4f32)", accent: "#f0c38a", card: "rgba(255,248,235,.10)", text: "#fff8ee" },
+  olive: { name: "زيتوني", background: "linear-gradient(135deg,#20281b,#65734a)", accent: "#e4d79b", card: "rgba(255,255,255,.10)", text: "#fbfff4" },
+  sunset: { name: "غروب", background: "linear-gradient(135deg,#4b1e3f,#d56a3b 55%,#f3b45b)", accent: "#fff0c2", card: "rgba(255,255,255,.12)", text: "#fff" },
+  minimal: { name: "مينيمال", background: "linear-gradient(135deg,#fafafa,#ececec)", accent: "#555", card: "#fff", text: "#222" }
+};
 
-  cafe: {
-    name: "كافيه مودرن",
-    background: "linear-gradient(135deg,#f6efe5,#fffaf4)",
-    accent: "#9b6b43",
-    card: "#ffffff",
-    text: "#2d241e"
-  },
-
-  fresh: {
-    name: "أخضر طبيعي",
-    background: "linear-gradient(135deg,#edf5ed,#f8fbf6)",
-    accent: "#4f7b59",
-    card: "#ffffff",
-    text: "#203226"
-  },
-
-  modern: {
-    name: "مودرن",
-    background: "linear-gradient(135deg,#f2f2f2,#ffffff)",
-    accent: "#222222",
-    card: "#ffffff",
-    text: "#171717"
-  },
-
-  dark: {
-    name: "دارك",
-    background: "linear-gradient(135deg,#080808,#1c1c1c)",
-    accent: "#ffffff",
-    card: "#151515",
-    text: "#ffffff"
-  }
+const BACKGROUNDS = {
+  plain: "linear-gradient(135deg,#fffaf4,#f2e9dc)",
+  dark: "linear-gradient(135deg,#14110f,#33251b)",
+  dots: "radial-gradient(circle at 12px 12px,rgba(126,86,45,.22) 2px,transparent 2.5px),linear-gradient(135deg,#fffaf4,#f0e5d6)",
+  lines: "repeating-linear-gradient(135deg,rgba(154,107,67,.10) 0,rgba(154,107,67,.10) 2px,transparent 2px,transparent 13px),linear-gradient(135deg,#fff,#f5eee6)",
+  leaves: "radial-gradient(ellipse at 15% 20%,rgba(79,123,89,.22) 0 7%,transparent 8%),radial-gradient(ellipse at 88% 70%,rgba(79,123,89,.18) 0 8%,transparent 9%),linear-gradient(135deg,#f3f8f0,#fff)",
+  gold: "radial-gradient(circle at 20% 20%,rgba(215,173,99,.30),transparent 20%),radial-gradient(circle at 80% 80%,rgba(215,173,99,.22),transparent 24%),linear-gradient(135deg,#1a1510,#4a3420)",
+  waves: "repeating-radial-gradient(ellipse at 0% 100%,rgba(70,150,160,.16) 0 8px,transparent 9px 22px),linear-gradient(135deg,#eefbfb,#d8eeee)",
+  marble: "radial-gradient(circle at 30% 20%,rgba(0,0,0,.06),transparent 25%),repeating-linear-gradient(120deg,transparent 0 35px,rgba(0,0,0,.045) 36px,transparent 38px),linear-gradient(135deg,#fafafa,#e9e9e9)",
+  rose: "radial-gradient(circle at 15% 85%,rgba(190,75,115,.16) 0 12%,transparent 13%),radial-gradient(circle at 85% 15%,rgba(190,75,115,.12) 0 10%,transparent 11%),linear-gradient(135deg,#fff6f8,#f6dfe7)",
+  geometric: "linear-gradient(45deg,rgba(110,80,170,.12) 25%,transparent 25%,transparent 75%,rgba(110,80,170,.12) 75%),linear-gradient(45deg,rgba(110,80,170,.08) 25%,transparent 25%,transparent 75%,rgba(110,80,170,.08) 75%),linear-gradient(135deg,#faf8ff,#eee9fa)",
+  coffee: "radial-gradient(circle at 20% 30%,rgba(240,195,138,.20) 0 8%,transparent 9%),radial-gradient(circle at 80% 75%,rgba(240,195,138,.15) 0 10%,transparent 11%),linear-gradient(135deg,#241711,#68442d)",
+  stars: "radial-gradient(circle at 10% 20%,#fff 0 1px,transparent 2px),radial-gradient(circle at 70% 30%,#fff 0 1px,transparent 2px),radial-gradient(circle at 40% 80%,#fff 0 1px,transparent 2px),linear-gradient(135deg,#080c18,#202a48)",
+  terracotta: "radial-gradient(circle at 90% 15%,rgba(224,128,85,.22) 0 13%,transparent 14%),radial-gradient(circle at 10% 85%,rgba(224,128,85,.18) 0 15%,transparent 16%),linear-gradient(135deg,#fff5ed,#f2d4c3)"
 };
 
 
@@ -209,6 +198,7 @@ async function initDB(env) {
         description TEXT NOT NULL DEFAULT '',
         phone TEXT NOT NULL DEFAULT '',
         address TEXT NOT NULL DEFAULT '',
+        hours TEXT NOT NULL DEFAULT '',
         logo TEXT NOT NULL DEFAULT '',
         slug TEXT NOT NULL UNIQUE,
         menu_enabled INTEGER NOT NULL DEFAULT 1,
@@ -258,6 +248,7 @@ async function initDB(env) {
     "TEXT NOT NULL DEFAULT ''"
   );
 
+  await ensureRestaurantColumn(env, "hours", "TEXT NOT NULL DEFAULT ''");
   await ensureRestaurantColumn(env, "menu_enabled", "INTEGER NOT NULL DEFAULT 1");
   await ensureRestaurantColumn(env, "menu_expires_at", "TEXT");
 
@@ -688,6 +679,9 @@ async function updateRestaurant(request, env) {
   const address =
     clean(body.address);
 
+  const hours =
+    clean(body.hours);
+
   const logo =
     clean(body.logo);
 
@@ -718,6 +712,7 @@ async function updateRestaurant(request, env) {
       description = ?,
       phone = ?,
       address = ?,
+      hours = ?,
       logo = ?,
       theme = ?,
       background = ?
@@ -727,6 +722,7 @@ async function updateRestaurant(request, env) {
     description,
     phone,
     address,
+    hours,
     logo,
     theme,
     background,
@@ -1314,7 +1310,7 @@ async function publicMenu(request, env) {
 
   if (expired) {
     return html(
-      errorMenuPage("انتهت مدة تشغيل هذا المنيو. يرجى التواصل مع إدارة لمسة لتجديده."),
+      errorMenuPage("انتهت مدة تشغيل هذا المنيو. يرجى التواصل مع إدارة LAMSA لتجديده."),
       403
     );
   }
@@ -1678,7 +1674,7 @@ function homePage() {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>لمسة | LAMSA</title>
+<title>LAMSA | منصتك الرقمية</title>
 
 <style>
 
@@ -1834,8 +1830,7 @@ h1 span{
 </div>
 
 <div class="logo-text">
-لمسة
-<small>LAMSA</small>
+LAMSA
 </div>
 
 </div>
@@ -1910,7 +1905,7 @@ function authPage() {
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>الدخول | لمسة</title>
+<title>الدخول | LAMSA</title>
 
 <style>
 
@@ -2063,7 +2058,7 @@ input:focus{
 </div>
 
 <div class="logo">
-لمسة
+LAMSA
 </div>
 
 </div>
@@ -2388,7 +2383,7 @@ id="check-${key}">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
-<title>لوحة التحكم | لمسة</title>
+<title>لوحة التحكم | LAMSA</title>
 
 <style>
 
@@ -2790,14 +2785,35 @@ textarea{
 }
 
 .backgrounds{
-  display:flex;
-  gap:9px;
-  flex-wrap:wrap;
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:10px;
 }
 
+.qr-box{
+  width:220px;
+  min-height:220px;
+  margin:16px auto;
+  padding:10px;
+  border-radius:18px;
+  background:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:0 12px 35px rgba(0,0,0,.08);
+}
+
+.qr-box img{
+  width:200px;
+  height:200px;
+  display:block;
+}
+
+.qr-card{text-align:center;}
+
 .bg-option{
-  width:60px;
-  height:60px;
+  width:100%;
+  aspect-ratio:1;
   border-radius:13px;
   border:3px solid transparent;
   cursor:pointer;
@@ -2864,6 +2880,10 @@ textarea{
     grid-template-columns:repeat(3,1fr);
   }
 
+  .backgrounds{
+    grid-template-columns:repeat(4,1fr);
+  }
+
 }
 
 @media(max-width:700px){
@@ -2892,6 +2912,10 @@ textarea{
 
   .themes{
     grid-template-columns:repeat(2,1fr);
+  }
+
+  .backgrounds{
+    grid-template-columns:repeat(3,1fr);
   }
 
   .item-row{
@@ -2923,8 +2947,7 @@ textarea{
 </div>
 
 <div class="logo-text">
-لمسة
-<small>LAMSA</small>
+LAMSA
 </div>
 
 </div>
@@ -2984,6 +3007,10 @@ onclick="logout()">
 <label>العنوان</label>
 
 <input id="restaurantAddress">
+
+<label>🕒 مواعيد العمل</label>
+
+<input id="restaurantHours" placeholder="مثال: يومياً من 10 صباحاً إلى 12 منتصف الليل">
 
 <label>
 🖼️ رابط شعار المطعم
@@ -3046,6 +3073,21 @@ target="_blank">
 </section>
 
 
+<section class="card qr-card">
+
+<h2>📱 باركود المنيو</h2>
+
+<p class="small">امسح الباركود بالكاميرا لفتح المنيو مباشرة.</p>
+
+<div id="qrBox" class="qr-box">
+  <span>جاري إنشاء الباركود...</span>
+</div>
+
+<button class="menu-open" type="button" onclick="downloadQr()">حفظ الباركود</button>
+
+</section>
+
+
 <section class="card full">
 
 <div class="section-title">
@@ -3073,41 +3115,13 @@ ${themeCards}
 </h3>
 
 <p class="small">
-اختار خلفية جاهزة الآن، وسنضيف خلفيات أكثر لاحقًا.
+اختار خلفية من الخلفيات المزخرفة أو الهادئة.
 </p>
 
 <div class="backgrounds">
-
-<div
-class="bg-option bg-1"
-data-bg="bg1"
-onclick="selectBackground('bg1')">
-</div>
-
-<div
-class="bg-option bg-2"
-data-bg="bg2"
-onclick="selectBackground('bg2')">
-</div>
-
-<div
-class="bg-option bg-3"
-data-bg="bg3"
-onclick="selectBackground('bg3')">
-</div>
-
-<div
-class="bg-option bg-4"
-data-bg="bg4"
-onclick="selectBackground('bg4')">
-</div>
-
-<div
-class="bg-option bg-5"
-data-bg="bg5"
-onclick="selectBackground('bg5')">
-</div>
-
+${Object.entries(BACKGROUNDS).map(([key,value]) => `
+<div class="bg-option" data-bg="${key}" style="background:${value}" onclick="selectBackground('${key}')" title="${key}"></div>
+`).join("")}
 </div>
 
 </div>
@@ -3303,6 +3317,11 @@ async function load(){
     ).value =
       restaurant.address || "";
 
+    document.getElementById(
+      "restaurantHours"
+    ).value =
+      restaurant.hours || "";
+
 
     document.getElementById(
       "restaurantLogo"
@@ -3341,6 +3360,8 @@ async function load(){
       "openMenuButton"
     ).href = link;
 
+    updateQr(link);
+
 
     await loadCategories();
     await loadItems();
@@ -3351,6 +3372,24 @@ async function load(){
 
   }
 
+}
+
+
+function updateQr(link){
+  const box = document.getElementById("qrBox");
+  if(!box || !link) return;
+  const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=" + encodeURIComponent(link);
+  box.innerHTML = '<img id="qrImage" src="' + qrUrl + '" alt="QR Code للمنيو" crossorigin="anonymous">';
+}
+
+function downloadQr(){
+  const img = document.getElementById("qrImage");
+  if(!img) return;
+  const link = document.createElement("a");
+  link.href = img.src;
+  link.target = "_blank";
+  link.rel = "noopener";
+  link.click();
 }
 
 
@@ -3492,6 +3531,11 @@ async function saveRestaurantData(){
         address:
           document.getElementById(
             "restaurantAddress"
+          ).value,
+
+        hours:
+          document.getElementById(
+            "restaurantHours"
           ).value,
 
         logo:
@@ -4067,24 +4111,7 @@ function publicMenuPage(
   const customBackground =
     restaurant.background || "";
 
-  const customBackgrounds = {
-
-    bg1:
-      "linear-gradient(135deg,#201a15,#5b4127)",
-
-    bg2:
-      "linear-gradient(135deg,#f4e7d5,#fffaf3)",
-
-    bg3:
-      "linear-gradient(135deg,#dcebdc,#f8fff7)",
-
-    bg4:
-      "linear-gradient(135deg,#222,#555)",
-
-    bg5:
-      "linear-gradient(135deg,#efe1cf,#d3a66c,#6d4b2e)"
-
-  };
+  const customBackgrounds = BACKGROUNDS;
 
 
   if(customBackgrounds[customBackground]){
@@ -4409,6 +4436,46 @@ body{
   opacity:.65;
 }
 
+.site-nav{
+  max-width:900px;
+  margin:24px auto 0;
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.site-nav a,.contact-actions a,.contact-actions span{
+  color:inherit;
+  text-decoration:none;
+  padding:9px 13px;
+  border-radius:999px;
+  background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.10);
+  font-size:13px;
+}
+
+.site-info{
+  max-width:900px;
+  margin:10px auto 0;
+  padding:26px 15px 10px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+}
+
+.site-info > div{
+  background:${theme.card};
+  color:${theme.text};
+  border-radius:20px;
+  padding:20px;
+  box-shadow:0 10px 35px rgba(0,0,0,.08);
+}
+
+.site-info h2{margin:0 0 10px;color:${theme.accent};font-size:20px;}
+.site-info p{margin:0;line-height:1.9;opacity:.75;}
+.contact-actions{display:flex;flex-wrap:wrap;gap:8px;}
+
 .menu{
   max-width:900px;
   margin:auto;
@@ -4539,6 +4606,10 @@ body{
     font-size:21px;
   }
 
+  .site-info{
+    grid-template-columns:1fr;
+  }
+
 }
 
 </style>
@@ -4563,13 +4634,32 @@ ${restaurantDescription}
 LAMSA
 </div>
 
+<nav class="site-nav">
+  <a href="#menu">المنيو</a>
+  <a href="#about">عن المكان</a>
+  <a href="#contact">التواصل</a>
+</nav>
+
 </header>
 
-<main class="menu">
+<main class="menu" id="menu">
 
 ${sections}
 
 </main>
+
+<section class="site-info" id="about">
+  ${restaurant.description ? `<div><h2>عن المكان</h2><p>${escapeHtml(restaurant.description)}</p></div>` : ""}
+  <div id="contact">
+    <h2>تواصل معنا</h2>
+    <div class="contact-actions">
+      ${restaurant.phone ? `<a href="tel:${escapeHtml(restaurant.phone)}">📞 اتصال</a>` : ""}
+      ${restaurant.phone ? `<a href="https://wa.me/${escapeHtml(String(restaurant.phone).replace(/[^0-9]/g,""))}" target="_blank" rel="noopener">💬 واتساب</a>` : ""}
+      ${restaurant.address ? `<span>📍 ${escapeHtml(restaurant.address)}</span>` : ""}
+      ${restaurant.hours ? `<span>🕒 ${escapeHtml(restaurant.hours)}</span>` : ""}
+    </div>
+  </div>
+</section>
 
 <footer class="footer">
   <div style="font-size:14px;font-weight:800;letter-spacing:.5px;margin-bottom:8px;">LAMSA</div>
@@ -4602,7 +4692,7 @@ function errorMenuPage(message) {
 name="viewport"
 content="width=device-width,initial-scale=1">
 
-<title>لمسة</title>
+<title>LAMSA</title>
 
 <style>
 
