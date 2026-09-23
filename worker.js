@@ -199,6 +199,7 @@ async function initDB(env) {
         phone TEXT NOT NULL DEFAULT '',
         address TEXT NOT NULL DEFAULT '',
         hours TEXT NOT NULL DEFAULT '',
+        business_type TEXT NOT NULL DEFAULT 'restaurant',
         logo TEXT NOT NULL DEFAULT '',
         slug TEXT NOT NULL UNIQUE,
         menu_enabled INTEGER NOT NULL DEFAULT 1,
@@ -249,6 +250,7 @@ async function initDB(env) {
   );
 
   await ensureRestaurantColumn(env, "hours", "TEXT NOT NULL DEFAULT ''");
+  await ensureRestaurantColumn(env, "business_type", "TEXT NOT NULL DEFAULT 'restaurant'");
   await ensureRestaurantColumn(env, "menu_enabled", "INTEGER NOT NULL DEFAULT 1");
   await ensureRestaurantColumn(env, "menu_expires_at", "TEXT");
 
@@ -366,15 +368,16 @@ async function register(request, env) {
 
   await env.DB.prepare(`
     INSERT INTO restaurants
-    (id, user_id, name, slug, theme, background, menu_enabled, menu_expires_at)
-    VALUES (?, ?, ?, ?, ?, ?, 1, datetime('now', '+30 days'))
+    (id, user_id, name, slug, theme, background, business_type, menu_enabled, menu_expires_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 1, datetime('now', '+30 days'))
   `).bind(
     crypto.randomUUID(),
     id,
     name,
     slug,
     "modern",
-    ""
+    "",
+    "restaurant"
   ).run();
 
   const session =
@@ -682,6 +685,11 @@ async function updateRestaurant(request, env) {
   const hours =
     clean(body.hours);
 
+  const businessType =
+    ["restaurant", "cafe", "both"].includes(body.business_type)
+      ? body.business_type
+      : "restaurant";
+
   const logo =
     clean(body.logo);
 
@@ -696,7 +704,7 @@ async function updateRestaurant(request, env) {
   if (!name) {
     return json({
       ok: false,
-      error: "اسم المطعم مطلوب"
+      error: "اسم المطعم أو الكافيه مطلوب"
     }, 400);
   }
 
@@ -713,6 +721,7 @@ async function updateRestaurant(request, env) {
       phone = ?,
       address = ?,
       hours = ?,
+      business_type = ?,
       logo = ?,
       theme = ?,
       background = ?
@@ -723,6 +732,7 @@ async function updateRestaurant(request, env) {
     phone,
     address,
     hours,
+    businessType,
     logo,
     theme,
     background,
@@ -1383,15 +1393,16 @@ async function getRestaurantByUser(env, userId) {
 
     await env.DB.prepare(`
       INSERT INTO restaurants
-      (id, user_id, name, slug, theme, background, menu_enabled, menu_expires_at)
-      VALUES (?, ?, ?, ?, ?, ?, 1, datetime('now', '+30 days'))
+      (id, user_id, name, slug, theme, background, business_type, menu_enabled, menu_expires_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1, datetime('now', '+30 days'))
     `).bind(
       id,
       userId,
       user?.name || "",
       slug,
       "modern",
-      ""
+      "",
+      "restaurant"
     ).run();
 
     restaurant =
@@ -1857,7 +1868,7 @@ onclick="location.href='/login'">
 </h1>
 
 <p>
-أنشئ موقع مطعمك ومنيوك الرقمية بسهولة،
+أنشئ موقع مطعمك أو كافيهك ومنيوك الرقمية بسهولة،
 واختار التصميم والخلفية والألوان التي تناسب علامتك.
 </p>
 
@@ -2511,6 +2522,49 @@ main{
   line-height:1.8;
 }
 
+.business-type-title{
+  margin:8px 0 10px;
+  font-weight:900;
+  color:#4a4037;
+}
+
+.business-types{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+  margin-bottom:20px;
+}
+
+.business-type{
+  border:2px solid #eee7df;
+  background:#fff;
+  border-radius:18px;
+  padding:16px 10px;
+  cursor:pointer;
+  font-family:inherit;
+  color:#2a241f;
+  transition:.2s;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:5px;
+}
+
+.business-type:hover{
+  transform:translateY(-2px);
+  border-color:#c69b64;
+}
+
+.business-type.selected{
+  border-color:#b2834c;
+  background:linear-gradient(135deg,#fffaf3,#f4e6d4);
+  box-shadow:0 8px 25px rgba(178,131,76,.15);
+}
+
+.business-icon{font-size:30px;line-height:1.2;}
+.business-type b{font-size:16px;}
+.business-type small{font-size:11px;color:#888;}
+
 .grid{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
@@ -2902,6 +2956,10 @@ textarea{
     font-size:12px;
   }
 
+  .business-types{
+    grid-template-columns:1fr;
+  }
+
   .grid{
     grid-template-columns:1fr;
   }
@@ -2979,7 +3037,7 @@ onclick="logout()">
 </h1>
 
 <p>
-من هنا تقدر تدير مطعمك ومنيوك وتختار شكل المنيو بنفسك.
+من هنا تقدر تدير مطعمك أو كافيهك ومنيوك وتختار شكل الموقع بنفسك.
 </p>
 
 </section>
@@ -2989,10 +3047,29 @@ onclick="logout()">
 <section class="card">
 
 <h2>
-🏪 بيانات المطعم
+🏪 نوع النشاط وبياناته
 </h2>
 
-<label>اسم المطعم</label>
+<div class="business-type-title">اختار نوع المكان</div>
+<div class="business-types" id="businessTypes">
+  <button type="button" class="business-type" data-type="restaurant" onclick="selectBusinessType('restaurant')">
+    <span class="business-icon">🍽️</span>
+    <b>مطعم</b>
+    <small>مطعم فقط</small>
+  </button>
+  <button type="button" class="business-type" data-type="cafe" onclick="selectBusinessType('cafe')">
+    <span class="business-icon">☕</span>
+    <b>كافيه</b>
+    <small>كافيه فقط</small>
+  </button>
+  <button type="button" class="business-type" data-type="both" onclick="selectBusinessType('both')">
+    <span class="business-icon">🍽️☕</span>
+    <b>مطعم وكافيه</b>
+    <small>الاثنين معًا</small>
+  </button>
+</div>
+
+<label>اسم المطعم / الكافيه</label>
 
 <input id="restaurantName">
 
@@ -3234,6 +3311,11 @@ class="message">
 
 </main>
 
+<footer class="footer" style="text-align:center;padding:28px 20px 22px;margin-top:30px;border-top:1px solid #e7dfd5;color:#777;line-height:1.8;">
+  <div style="font-size:14px;font-weight:900;letter-spacing:1px;color:#211d19;margin-bottom:5px;">LAMSA</div>
+  <div style="font-size:13px;">الحقوق محفوظة بواسطة M/mohamed abdalaziem</div>
+</footer>
+
 <script>
 
 let restaurant = null;
@@ -3242,6 +3324,7 @@ let items = [];
 
 let selectedTheme = "modern";
 let selectedBackground = "";
+let selectedBusinessType = "restaurant";
 
 
 async function api(url, options = {}){
@@ -3336,7 +3419,10 @@ async function load(){
     selectedBackground =
       restaurant.background || "";
 
+    selectedBusinessType =
+      restaurant.business_type || "restaurant";
 
+    updateBusinessTypeUI();
     updateThemeUI();
     updateBackgroundUI();
     updateLogoPreview();
@@ -3406,6 +3492,17 @@ function openMenu(){
 
 }
 
+
+function selectBusinessType(type){
+  selectedBusinessType = ["restaurant","cafe","both"].includes(type) ? type : "restaurant";
+  updateBusinessTypeUI();
+}
+
+function updateBusinessTypeUI(){
+  document.querySelectorAll(".business-type").forEach(btn => {
+    btn.classList.toggle("selected", btn.dataset.type === selectedBusinessType);
+  });
+}
 
 function selectTheme(theme){
 
@@ -3489,7 +3586,7 @@ async function saveRestaurant(){
     document.getElementById(
       "restaurantMessage"
     ).textContent =
-      "تم حفظ بيانات المطعم ✓";
+      "تم حفظ بيانات المكان ✓";
 
     updateLogoPreview();
 
@@ -3547,7 +3644,10 @@ async function saveRestaurantData(){
           selectedTheme,
 
         background:
-          selectedBackground
+          selectedBackground,
+
+        business_type:
+          selectedBusinessType
 
       })
     }
@@ -4105,6 +4205,12 @@ function publicMenuPage(
     THEMES[restaurant.theme]
       || THEMES.modern;
 
+  const businessType = restaurant.business_type || "restaurant";
+  const businessTypeLabel =
+    businessType === "cafe" ? "كافيه" :
+    businessType === "both" ? "مطعم وكافيه" :
+    "مطعم";
+
   let background =
     theme.background;
 
@@ -4413,6 +4519,20 @@ body{
   color:${theme.accent};
 }
 
+.business-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  margin:0 auto 10px;
+  padding:7px 13px;
+  border-radius:999px;
+  background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.12);
+  color:${theme.accent};
+  font-size:13px;
+  font-weight:900;
+}
+
 .hero h1{
   margin:0;
   font-size:clamp(30px,7vw,52px);
@@ -4623,6 +4743,8 @@ body{
 <header class="hero">
 
 ${logoHtml}
+
+<div class="business-badge">${businessType === "cafe" ? "☕" : businessType === "both" ? "🍽️ ☕" : "🍽️"} ${businessTypeLabel}</div>
 
 <h1>
 ${escapeHtml(restaurant.name)}
