@@ -1,6 +1,6 @@
 const COOKIE = "lamsa_session";
 const SESSION_DAYS = 30;
-const OWNER_EMAIL = "mmalsakr8@gmail.com";
+const OWNER_EMAIL = "admin@lamsa.local";
 const OWNER_NAME = "LAMSA Owner";
 const OWNER_PHONE = "__LAMSA_OWNER__";
 const OWNER_PASSWORD_HASH = "pbkdf2$100000$6lSer6pmljTCjbnbWeqSMQ==$GcwPonJEDF8QepmW+2egBPbgzwCvqF17IPqy7sPazFQ=";
@@ -289,19 +289,9 @@ async function initDB(env) {
     "owner"
   ).run();
 
-  // The platform owner is tied to one specific existing account.
-  // Demote any previous admin/owner account first, then claim the target account.
   await env.DB.prepare(`
-    UPDATE users
-    SET role = "customer"
-    WHERE LOWER(email) <> LOWER(?)
-      AND role IN ("admin", "owner")
-  `).bind(OWNER_EMAIL).run();
-
-  await env.DB.prepare(`
-    UPDATE users
-    SET role = "owner"
-    WHERE LOWER(email) = LOWER(?)
+    UPDATE users SET role = "customer"
+    WHERE role = "admin" AND email <> ?
   `).bind(OWNER_EMAIL).run();
 }
 
@@ -1303,25 +1293,38 @@ async function requireAdmin(request, env) {
 async function adminRestaurants(request, env) {
   const user = await requireAdmin(request, env);
   if (!user) return json({ ok: false, error: "غير مصرح" }, 403);
-  const result = await env.DB.prepare(`
-    SELECT
-      restaurants.id,
-      restaurants.user_id,
-      restaurants.name,
-      restaurants.slug,
-      restaurants.business_type,
-      restaurants.menu_enabled,
-      restaurants.menu_expires_at,
-      restaurants.created_at,
-      users.name AS customer_name,
-      users.email AS customer_email,
-      users.phone AS customer_phone,
-      users.created_at AS customer_created_at
-    FROM restaurants
-    JOIN users ON users.id = restaurants.user_id
-    ORDER BY users.created_at DESC
-  `).all();
-  return json({ ok: true, restaurants: result.results || [] });
+
+  try {
+    const result = await env.DB.prepare(`
+      SELECT
+        restaurants.id,
+        restaurants.user_id,
+        restaurants.name,
+        restaurants.slug,
+        restaurants.business_type,
+        restaurants.menu_enabled,
+        restaurants.menu_expires_at,
+        restaurants.created_at,
+        users.name AS customer_name,
+        users.email AS customer_email,
+        users.phone AS customer_phone,
+        users.created_at AS customer_created_at
+      FROM restaurants
+      JOIN users ON users.id = restaurants.user_id
+      ORDER BY restaurants.created_at DESC
+    `).all();
+
+    return json({
+      ok: true,
+      restaurants: result.results || []
+    });
+  } catch (error) {
+    console.error("ADMIN RESTAURANTS ERROR:", error);
+    return json({
+      ok: false,
+      error: "تعذر تحميل المنيوهات من قاعدة البيانات."
+    }, 500);
+  }
 }
 
 async function adminActivateMenu(request, env) {
@@ -2487,14 +2490,19 @@ function state(r){if(Number(r.menu_enabled)!==1)return ['disabled','متوقفة
 async function call(url,body){const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)});const d=await res.json();if(!res.ok||!d.ok)throw new Error(d.error||'حدث خطأ');return d}
 function show(msg){const el=document.getElementById('message');el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',2500)}
 async function load(){
- try{
-  const meRes=await fetch('/api/me',{credentials:'same-origin'});const me=await meRes.json();
-  if(!me.ok||!me.user||me.user.role!=='owner'){location.href='/admin/login';return}
-  const res=await fetch('/api/admin/restaurants',{credentials:'same-origin'});const data=await res.json();if(!res.ok||!data.ok)throw new Error(data.error||'تعذر تحميل البيانات');
   const list=document.getElementById('list');
-  if(!data.restaurants.length){list.innerHTML='<div class="empty">لا توجد منيوهات حتى الآن.</div>';return}
-  list.innerHTML=data.restaurants.map(r=>{const [cls,label]=state(r);const card='<article class="card"><div class="name">'+esc(r.name||'بدون اسم')+'</div><div class="meta"><b>العميل:</b> '+esc(r.customer_name||'غير محدد')+'<br><b>الهاتف:</b> '+esc(r.customer_phone||'غير محدد')+'<br><b>الإيميل:</b> '+esc(r.customer_email||'غير محدد')+'<br><b>نوع النشاط:</b> '+typeLabel(r.business_type)+'<br><b>الرابط:</b> /menu/'+esc(r.slug||'')+'<br><b>تاريخ التسجيل:</b> '+fmt(r.customer_created_at||r.created_at)+'<br><b>بداية الفترة المجانية:</b> '+fmt(r.customer_created_at||r.created_at)+'<br><b>تاريخ الانتهاء:</b> '+fmt(r.menu_expires_at)+'</div><span class="status '+cls+'">'+label+'</span><div class="actions"><button class="renew" onclick="renew(\''+esc(r.id)+'\')">▶️ تشغيل / تجديد 30 يوم</button><button class="stop" onclick="disableMenu(\''+esc(r.id)+'\')">⏹️ إيقاف</button><button class="open" onclick="window.open(\'/menu/'+encodeURIComponent(r.slug||'')+'\',\'_blank\')">👀 فتح المنيو</button></div></article>';return card}).join('')
- }catch(e){document.getElementById('list').innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
+  list.innerHTML='<div class="empty">جاري تحميل المنيوهات...</div>';
+  try{
+    const res=await fetch('/api/admin/restaurants',{method:'GET',credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json'}});
+    const data=await res.json().catch(()=>({ok:false,error:'استجابة غير صالحة من الخادم'}));
+    if(res.status===401||res.status===403){location.href='/admin/login';return}
+    if(!res.ok||!data.ok)throw new Error(data.error||'تعذر تحميل البيانات');
+    if(!Array.isArray(data.restaurants)||!data.restaurants.length){list.innerHTML='<div class="empty">لا توجد منيوهات حتى الآن.</div>';return}
+    list.innerHTML=data.restaurants.map(r=>{const [cls,label]=state(r);const card='<article class="card"><div class="name">'+esc(r.name||'بدون اسم')+'</div><div class="meta"><b>العميل:</b> '+esc(r.customer_name||'غير محدد')+'<br><b>الهاتف:</b> '+esc(r.customer_phone||'غير محدد')+'<br><b>الإيميل:</b> '+esc(r.customer_email||'غير محدد')+'<br><b>نوع النشاط:</b> '+typeLabel(r.business_type)+'<br><b>الرابط:</b> /menu/'+esc(r.slug||'')+'<br><b>تاريخ التسجيل:</b> '+fmt(r.customer_created_at||r.created_at)+'<br><b>بداية الفترة المجانية:</b> '+fmt(r.customer_created_at||r.created_at)+'<br><b>تاريخ الانتهاء:</b> '+fmt(r.menu_expires_at)+'</div><span class="status '+cls+'">'+label+'</span><div class="actions"><button class="renew" onclick="renew(\''+esc(r.id)+'\')">▶️ تشغيل / تجديد 30 يوم</button><button class="stop" onclick="disableMenu(\''+esc(r.id)+'\')">⏹️ إيقاف</button><button class="open" onclick="window.open(\'/menu/'+encodeURIComponent(r.slug||'')+'\',\'_blank\')">👀 فتح المنيو</button></div></article>';return card}).join('')
+  }catch(e){
+    console.error('ADMIN LOAD ERROR:',e);
+    list.innerHTML='<div class="empty">'+esc(e.message||'تعذر تحميل المنيوهات')+'</div>';
+  }
 }
 async function renew(id){if(!confirm('تشغيل أو تجديد هذه المنيو لمدة 30 يوم؟'))return;try{await call('/api/admin/menu/activate',{restaurant_id:id,days:30});show('تم تشغيل/تجديد المنيو لمدة 30 يوم ✓');load()}catch(e){alert(e.message)}}
 async function disableMenu(id){if(!confirm('هل تريد إيقاف هذه المنيو الآن؟'))return;try{await call('/api/admin/menu/disable',{restaurant_id:id});show('تم إيقاف المنيو ✓');load()}catch(e){alert(e.message)}}
