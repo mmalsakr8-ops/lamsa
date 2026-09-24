@@ -162,7 +162,7 @@ export default {
       }
 
       if (path === "/admin") {
-        return html(adminPage());
+        return html(await adminPage(request, env));
       }
 
       return html(homePage());
@@ -2443,7 +2443,44 @@ const form=document.getElementById('form'),msg=document.getElementById('msg');fo
 // ADMIN DASHBOARD
 // =========================
 
-function adminPage() {
+async function adminPage(request, env) {
+  const user = await requireAdmin(request, env);
+  if (!user) return adminLoginPage();
+
+  let restaurants = [];
+  try {
+    const result = await env.DB.prepare(`
+      SELECT restaurants.id, restaurants.user_id, restaurants.name, restaurants.slug,
+             restaurants.business_type, restaurants.menu_enabled, restaurants.menu_expires_at,
+             restaurants.created_at, users.name AS customer_name, users.email AS customer_email,
+             users.phone AS customer_phone, users.created_at AS customer_created_at
+      FROM restaurants
+      JOIN users ON users.id = restaurants.user_id
+      ORDER BY restaurants.created_at DESC
+    `).all();
+    restaurants = result.results || [];
+  } catch (error) {
+    console.error("ADMIN PAGE ERROR:", error);
+  }
+
+  const adminEsc = value => String(value ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\"/g,"&quot;").replace(/'/g,"&#039;");
+  const adminFmt = value => {
+    if (!value) return "غير محدد";
+    const d = new Date(String(value).replace(" ","T") + "Z");
+    return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString("ar-EG", {dateStyle:"medium", timeStyle:"short"});
+  };
+  const adminType = value => value === "cafe" ? "☕ كافيه" : value === "both" ? "🍽️☕ مطعم وكافيه" : "🍽️ مطعم";
+  const adminState = r => {
+    if (Number(r.menu_enabled) !== 1) return ["disabled", "متوقفة يدويًا"];
+    if (r.menu_expires_at && new Date(String(r.menu_expires_at).replace(" ","T") + "Z").getTime() <= Date.now()) return ["expired", "منتهية"];
+    return ["active", "نشطة"];
+  };
+  const adminListHtml = restaurants.length ? restaurants.map(r => {
+    const [cls,label] = adminState(r);
+    const slug = adminEsc(r.slug || "");
+    return `<article class="card"><div class="name">${adminEsc(r.name || "بدون اسم")}</div><div class="meta"><b>العميل:</b> ${adminEsc(r.customer_name || "غير محدد")}<br><b>الهاتف:</b> ${adminEsc(r.customer_phone || "غير محدد")}<br><b>الإيميل:</b> ${adminEsc(r.customer_email || "غير محدد")}<br><b>نوع النشاط:</b> ${adminType(r.business_type)}<br><b>الرابط:</b> /menu/${slug}<br><b>تاريخ التسجيل:</b> ${adminFmt(r.customer_created_at || r.created_at)}<br><b>بداية الفترة المجانية:</b> ${adminFmt(r.customer_created_at || r.created_at)}<br><b>تاريخ الانتهاء:</b> ${adminFmt(r.menu_expires_at)}</div><span class="status ${cls}">${label}</span><div class="actions"><button class="renew" data-action="renew" data-id="${adminEsc(r.id)}">▶️ تشغيل / تجديد 30 يوم</button><button class="stop" data-action="disable" data-id="${adminEsc(r.id)}">⏹️ إيقاف</button><button class="open" data-action="open" data-slug="${slug}">👀 فتح المنيو</button></div></article>`;
+  }).join("") : `<div class="empty">${restaurants.length === 0 ? "لا توجد منيوهات حتى الآن." : ""}</div>`;
+
   return `
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -2479,7 +2516,7 @@ footer{text-align:center;color:#777;padding:25px 15px 35px;font-size:13px}footer
 <main>
 <section class="hero"><h1>إدارة المنيوهات</h1><p>من هنا فقط يمكنك تشغيل أو إيقاف أو تجديد منيوهات العملاء.</p></section>
 <div id="message" class="message"></div>
-<div id="list" class="grid"><div class="empty">جاري تحميل المنيوهات...</div></div>
+<div id="list" class="grid">${adminListHtml}</div>
 </main>
 <footer><strong>LAMSA</strong>الحقوق محفوظة بواسطة M/mohamed abdalaziem</footer>
 <script>
@@ -2489,24 +2526,13 @@ function typeLabel(v){return v==='cafe'?'☕ كافيه':v==='both'?'🍽️☕ 
 function state(r){if(Number(r.menu_enabled)!==1)return ['disabled','متوقفة يدويًا'];if(r.menu_expires_at&&new Date(r.menu_expires_at.replace(' ','T')+'Z').getTime()<=Date.now())return ['expired','منتهية'];return ['active','نشطة']}
 async function call(url,body){const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)});const d=await res.json();if(!res.ok||!d.ok)throw new Error(d.error||'حدث خطأ');return d}
 function show(msg){const el=document.getElementById('message');el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',2500)}
-async function load(){
-  const list=document.getElementById('list');
-  list.innerHTML='<div class="empty">جاري تحميل المنيوهات...</div>';
-  try{
-    const res=await fetch('/api/admin/restaurants',{method:'GET',credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json'}});
-    const data=await res.json().catch(()=>({ok:false,error:'استجابة غير صالحة من الخادم'}));
-    if(res.status===401||res.status===403){location.href='/admin/login';return}
-    if(!res.ok||!data.ok)throw new Error(data.error||'تعذر تحميل البيانات');
-    if(!Array.isArray(data.restaurants)||!data.restaurants.length){list.innerHTML='<div class="empty">لا توجد منيوهات حتى الآن.</div>';return}
-    list.innerHTML=data.restaurants.map(r=>{const [cls,label]=state(r);const card='<article class="card"><div class="name">'+esc(r.name||'بدون اسم')+'</div><div class="meta"><b>العميل:</b> '+esc(r.customer_name||'غير محدد')+'<br><b>الهاتف:</b> '+esc(r.customer_phone||'غير محدد')+'<br><b>الإيميل:</b> '+esc(r.customer_email||'غير محدد')+'<br><b>نوع النشاط:</b> '+typeLabel(r.business_type)+'<br><b>الرابط:</b> /menu/'+esc(r.slug||'')+'<br><b>تاريخ التسجيل:</b> '+fmt(r.customer_created_at||r.created_at)+'<br><b>بداية الفترة المجانية:</b> '+fmt(r.customer_created_at||r.created_at)+'<br><b>تاريخ الانتهاء:</b> '+fmt(r.menu_expires_at)+'</div><span class="status '+cls+'">'+label+'</span><div class="actions"><button class="renew" onclick="renew(\''+esc(r.id)+'\')">▶️ تشغيل / تجديد 30 يوم</button><button class="stop" onclick="disableMenu(\''+esc(r.id)+'\')">⏹️ إيقاف</button><button class="open" onclick="window.open(\'/menu/'+encodeURIComponent(r.slug||'')+'\',\'_blank\')">👀 فتح المنيو</button></div></article>';return card}).join('')
-  }catch(e){
-    console.error('ADMIN LOAD ERROR:',e);
-    list.innerHTML='<div class="empty">'+esc(e.message||'تعذر تحميل المنيوهات')+'</div>';
-  }
-}
-async function renew(id){if(!confirm('تشغيل أو تجديد هذه المنيو لمدة 30 يوم؟'))return;try{await call('/api/admin/menu/activate',{restaurant_id:id,days:30});show('تم تشغيل/تجديد المنيو لمدة 30 يوم ✓');load()}catch(e){alert(e.message)}}
-async function disableMenu(id){if(!confirm('هل تريد إيقاف هذه المنيو الآن؟'))return;try{await call('/api/admin/menu/disable',{restaurant_id:id});show('تم إيقاف المنيو ✓');load()}catch(e){alert(e.message)}}
-load();
+async function call(url,body){const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)});const d=await res.json().catch(()=>({ok:false,error:'استجابة غير صالحة من الخادم'}));if(!res.ok||!d.ok)throw new Error(d.error||'حدث خطأ');return d}
+function show(msg){const el=document.getElementById('message');el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',2500)}
+async function renew(id){if(!confirm('تشغيل أو تجديد هذه المنيو لمدة 30 يوم؟'))return;try{await call('/api/admin/menu/activate',{restaurant_id:id,days:30});show('تم تشغيل/تجديد المنيو لمدة 30 يوم ✓');setTimeout(()=>location.reload(),500)}catch(e){alert(e.message)}}
+async function disableMenu(id){if(!confirm('هل تريد إيقاف هذه المنيو الآن؟'))return;try{await call('/api/admin/menu/disable',{restaurant_id:id});show('تم إيقاف المنيو ✓');setTimeout(()=>location.reload(),500)}catch(e){alert(e.message)}}
+document.querySelectorAll('[data-action="renew"]').forEach(b=>b.addEventListener('click',()=>renew(b.dataset.id)));
+document.querySelectorAll('[data-action="disable"]').forEach(b=>b.addEventListener('click',()=>disableMenu(b.dataset.id)));
+document.querySelectorAll('[data-action="open"]').forEach(b=>b.addEventListener('click',()=>window.open('/menu/'+encodeURIComponent(b.dataset.slug||''),'_blank')));
 </script>
 </body>
 </html>`;
