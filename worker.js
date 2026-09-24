@@ -36,6 +36,20 @@ const BACKGROUNDS = {
   terracotta: "radial-gradient(circle at 90% 15%,rgba(224,128,85,.22) 0 13%,transparent 14%),radial-gradient(circle at 10% 85%,rgba(224,128,85,.18) 0 15%,transparent 16%),linear-gradient(135deg,#fff5ed,#f2d4c3)"
 };
 
+const OWNER_THEMES = {
+  ownerGold: { name: "Owner ذهبي ملكي", background: "linear-gradient(135deg,#120d08,#5b3a16 48%,#0b0907)", accent: "#f2c56d", card: "rgba(255,255,255,.10)", text: "#fff8e8" },
+  ownerEmerald: { name: "Owner زمردي", background: "linear-gradient(135deg,#071b16,#0f5b49 55%,#06110e)", accent: "#8de0bf", card: "rgba(255,255,255,.10)", text: "#effff8" },
+  ownerBurgundy: { name: "Owner عنابي فاخر", background: "linear-gradient(135deg,#19070d,#641d2d 55%,#10050a)", accent: "#f0b0bd", card: "rgba(255,255,255,.11)", text: "#fff4f6" },
+  ownerPearl: { name: "Owner لؤلؤي", background: "linear-gradient(135deg,#ffffff,#e8e0d4)", accent: "#806746", card: "rgba(255,255,255,.88)", text: "#272018" }
+};
+
+const OWNER_BACKGROUNDS = {
+  ownerLuxury: "radial-gradient(circle at 18% 20%,rgba(240,197,109,.30),transparent 20%),radial-gradient(circle at 82% 78%,rgba(180,110,30,.20),transparent 25%),linear-gradient(135deg,#120c08,#493019)",
+  ownerVelvet: "radial-gradient(circle at 15% 80%,rgba(180,45,75,.22),transparent 25%),radial-gradient(circle at 85% 15%,rgba(100,20,50,.20),transparent 25%),linear-gradient(135deg,#16070d,#4d1727)",
+  ownerEmerald: "radial-gradient(ellipse at 15% 20%,rgba(95,220,165,.22) 0 8%,transparent 9%),radial-gradient(ellipse at 88% 75%,rgba(60,180,130,.18) 0 10%,transparent 11%),linear-gradient(135deg,#061713,#124d3e)",
+  ownerPearl: "radial-gradient(circle at 20% 25%,rgba(160,130,90,.10),transparent 22%),repeating-linear-gradient(120deg,transparent 0 35px,rgba(120,90,60,.05) 36px,transparent 38px),linear-gradient(135deg,#fff,#e6ddd0)"
+};
+
 
 // =========================
 // MAIN FETCH
@@ -94,6 +108,14 @@ export default {
 
       if (path === "/api/admin/menu/disable" && request.method === "POST") {
         return adminDisableMenu(request, env);
+      }
+
+      if (path === "/api/upload" && request.method === "POST") {
+        return uploadImage(request, env);
+      }
+
+      if (path.startsWith("/uploads/") && request.method === "GET") {
+        return serveUpload(request, env);
       }
 
       if (path === "/api/restaurant" && request.method === "GET") {
@@ -159,6 +181,15 @@ export default {
 
       if (path === "/admin/login") {
         return html(adminLoginPage());
+      }
+
+      if (path.startsWith("/admin/edit/")) {
+        const adminUser = await requireAdmin(request, env);
+        if (!adminUser) return html(adminLoginPage(), 401);
+        const restaurantId = decodeURIComponent(path.replace("/admin/edit/", ""));
+        const exists = await env.DB.prepare("SELECT id FROM restaurants WHERE id = ? LIMIT 1").bind(restaurantId).first();
+        if (!exists) return html(errorMenuPage("المنيو غير موجودة", "لم يتم العثور على منيو العميل المطلوبة."), 404);
+        return html(dashboardPage(restaurantId, true));
       }
 
       if (path === "/admin") {
@@ -269,12 +300,6 @@ async function initDB(env) {
   await ensureRestaurantColumn(env, "business_type", "TEXT NOT NULL DEFAULT 'restaurant'");
   await ensureRestaurantColumn(env, "menu_enabled", "INTEGER NOT NULL DEFAULT 1");
   await ensureRestaurantColumn(env, "menu_expires_at", "TEXT");
-
-  await env.DB.prepare(`
-    UPDATE restaurants
-    SET menu_expires_at = datetime(created_at, '+30 days')
-    WHERE menu_expires_at IS NULL
-  `).run();
 
   await env.DB.prepare(`
     INSERT OR IGNORE INTO users
@@ -696,10 +721,7 @@ async function getRestaurant(request, env) {
   }
 
   const restaurant =
-    await getRestaurantByUser(
-      env,
-      user.id
-    );
+    await getTargetRestaurant(request, env, user);
 
   return json({
     ok: true,
@@ -742,8 +764,9 @@ async function updateRestaurant(request, env) {
   const logo =
     clean(body.logo);
 
+  const availableThemes = { ...THEMES, ...OWNER_THEMES };
   const theme =
-    THEMES[body.theme]
+    availableThemes[body.theme]
       ? body.theme
       : "modern";
 
@@ -808,10 +831,7 @@ async function getCategories(request, env) {
   }
 
   const restaurant =
-    await getRestaurantByUser(
-      env,
-      user.id
-    );
+    await getTargetRestaurant(request, env, user);
 
   const result =
     await env.DB.prepare(`
@@ -840,10 +860,7 @@ async function createCategory(request, env) {
   }
 
   const restaurant =
-    await getRestaurantByUser(
-      env,
-      user.id
-    );
+    await getTargetRestaurant(request, env, user);
 
   const body =
     await request.json();
@@ -901,10 +918,7 @@ async function deleteCategory(request, env) {
   }
 
   const restaurant =
-    await getRestaurantByUser(
-      env,
-      user.id
-    );
+    await getTargetRestaurant(request, env, user);
 
   const id =
     decodeURIComponent(
@@ -971,10 +985,7 @@ async function getItems(request, env) {
   }
 
   const restaurant =
-    await getRestaurantByUser(
-      env,
-      user.id
-    );
+    await getTargetRestaurant(request, env, user);
 
   const result =
     await env.DB.prepare(`
@@ -1007,10 +1018,7 @@ async function createItem(request, env) {
   }
 
   const restaurant =
-    await getRestaurantByUser(
-      env,
-      user.id
-    );
+    await getTargetRestaurant(request, env, user);
 
   const body =
     await request.json();
@@ -1129,10 +1137,7 @@ async function updateItem(request, env) {
   }
 
   const restaurant =
-    await getRestaurantByUser(
-      env,
-      user.id
-    );
+    await getTargetRestaurant(request, env, user);
 
   const id =
     decodeURIComponent(
@@ -1252,10 +1257,7 @@ async function deleteItem(request, env) {
   }
 
   const restaurant =
-    await getRestaurantByUser(
-      env,
-      user.id
-    );
+    await getTargetRestaurant(request, env, user);
 
   const id =
     decodeURIComponent(
@@ -1332,21 +1334,23 @@ async function adminActivateMenu(request, env) {
   if (!user) return json({ ok: false, error: "غير مصرح" }, 403);
   const body = await request.json().catch(() => ({}));
   const restaurantId = clean(body.restaurant_id);
-  const days = Math.min(3650, Math.max(1, Math.floor(Number(body.days || 30))));
+  const plan = clean(body.plan || "30d");
   if (!restaurantId) return json({ ok: false, error: "restaurant_id مطلوب" }, 400);
+  if (!["30d","3m","1y","permanent"].includes(plan)) return json({ ok: false, error: "مدة الاشتراك غير صحيحة" }, 400);
+  if (plan === "permanent") {
+    const result = await env.DB.prepare(`UPDATE restaurants SET menu_enabled = 1, menu_expires_at = NULL WHERE id = ?`).bind(restaurantId).run();
+    if (!result.meta || result.meta.changes !== 1) return json({ ok: false, error: "المطعم غير موجود" }, 404);
+    return json({ ok: true, message: "تم تشغيل المنيو بشكل مفتوح", plan });
+  }
+  const modifier = plan === "3m" ? "+3 months" : plan === "1y" ? "+1 year" : "+30 days";
   const result = await env.DB.prepare(`
-    UPDATE restaurants
-    SET
-      menu_enabled = 1,
+    UPDATE restaurants SET menu_enabled = 1,
       menu_expires_at = CASE
-        WHEN menu_expires_at IS NOT NULL AND menu_expires_at > datetime('now')
-          THEN datetime(menu_expires_at, '+' || ? || ' days')
-        ELSE datetime('now', '+' || ? || ' days')
-      END
-    WHERE id = ?
-  `).bind(days, days, restaurantId).run();
+        WHEN menu_expires_at IS NOT NULL AND menu_expires_at > datetime('now') THEN datetime(menu_expires_at, '${modifier}')
+        ELSE datetime('now', '${modifier}') END
+    WHERE id = ?`).bind(restaurantId).run();
   if (!result.meta || result.meta.changes !== 1) return json({ ok: false, error: "المطعم غير موجود" }, 404);
-  return json({ ok: true, message: "تم تشغيل المنيو", days });
+  return json({ ok: true, message: "تم تشغيل/تجديد المنيو", plan });
 }
 
 async function adminDisableMenu(request, env) {
@@ -1358,6 +1362,35 @@ async function adminDisableMenu(request, env) {
   const result = await env.DB.prepare(`UPDATE restaurants SET menu_enabled = 0 WHERE id = ?`).bind(restaurantId).run();
   if (!result.meta || result.meta.changes !== 1) return json({ ok: false, error: "المطعم غير موجود" }, 404);
   return json({ ok: true, message: "تم إيقاف المنيو" });
+}
+
+
+// =========================
+// IMAGE UPLOADS (R2)
+// =========================
+
+async function uploadImage(request, env) {
+  const user = await requireUser(request, env);
+  if (!user) return unauthorized();
+  if (!env.IMAGES || typeof env.IMAGES.put !== "function") return json({ok:false,error:"تخزين الصور غير مفعّل بعد. يجب ربط R2 باسم IMAGES في إعدادات Worker."},503);
+  const contentType=request.headers.get("content-type")||"";
+  if(!contentType.toLowerCase().startsWith("multipart/form-data")) return json({ok:false,error:"يجب رفع الصورة كملف"},400);
+  const form=await request.formData();const file=form.get("file");
+  if(!(file instanceof File)) return json({ok:false,error:"لم يتم اختيار صورة"},400);
+  if(!file.type.startsWith("image/")) return json({ok:false,error:"الملف يجب أن يكون صورة"},400);
+  if(file.size>8*1024*1024) return json({ok:false,error:"حجم الصورة يجب ألا يتجاوز 8 ميجابايت"},400);
+  const extMap={"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/gif":"gif","image/avif":"avif"};
+  const ext=extMap[file.type]||"img";const key=`uploads/${user.id}/${crypto.randomUUID()}.${ext}`;
+  await env.IMAGES.put(key,file.stream(),{httpMetadata:{contentType:file.type}});
+  return json({ok:true,url:`/uploads/${key}`,key});
+}
+async function serveUpload(request, env) {
+  if(!env.IMAGES||typeof env.IMAGES.get!=="function") return new Response("R2 غير مفعّل",{status:503});
+  const url=new URL(request.url);const key=decodeURIComponent(url.pathname.replace("/uploads/",""));
+  if(!key||key.includes("..")) return new Response("Not found",{status:404});
+  const object=await env.IMAGES.get(key);if(!object) return new Response("Not found",{status:404});
+  const headers=new Headers();object.writeHttpMetadata(headers);headers.set("etag",object.httpEtag);headers.set("cache-control","public, max-age=31536000, immutable");
+  return new Response(object.body,{headers});
 }
 
 
@@ -1499,6 +1532,16 @@ async function getRestaurantByUser(env, userId) {
   return restaurant;
 }
 
+
+async function getTargetRestaurant(request, env, user) {
+  const requestedId = clean(new URL(request.url).searchParams.get("restaurant_id"));
+  if (user.role === "owner" && requestedId) {
+    const target = await env.DB.prepare(`SELECT * FROM restaurants WHERE id = ? LIMIT 1`).bind(requestedId).first();
+    if (!target) throw new Error("منيو العميل غير موجودة");
+    return target;
+  }
+  return getRestaurantByUser(env, user.id);
+}
 
 async function uniqueSlug(env, name) {
   let base =
@@ -2478,7 +2521,7 @@ async function adminPage(request, env) {
   const adminListHtml = restaurants.length ? restaurants.map(r => {
     const [cls,label] = adminState(r);
     const slug = adminEsc(r.slug || "");
-    return `<article class="card"><div class="name">${adminEsc(r.name || "بدون اسم")}</div><div class="meta"><b>العميل:</b> ${adminEsc(r.customer_name || "غير محدد")}<br><b>الهاتف:</b> ${adminEsc(r.customer_phone || "غير محدد")}<br><b>الإيميل:</b> ${adminEsc(r.customer_email || "غير محدد")}<br><b>نوع النشاط:</b> ${adminType(r.business_type)}<br><b>الرابط:</b> /menu/${slug}<br><b>تاريخ التسجيل:</b> ${adminFmt(r.customer_created_at || r.created_at)}<br><b>بداية الفترة المجانية:</b> ${adminFmt(r.customer_created_at || r.created_at)}<br><b>تاريخ الانتهاء:</b> ${adminFmt(r.menu_expires_at)}</div><span class="status ${cls}">${label}</span><div class="actions"><button class="renew" data-action="renew" data-id="${adminEsc(r.id)}">▶️ تشغيل / تجديد 30 يوم</button><button class="stop" data-action="disable" data-id="${adminEsc(r.id)}">⏹️ إيقاف</button><button class="open" data-action="open" data-slug="${slug}">👀 فتح المنيو</button></div></article>`;
+    return `<article class="card"><div class="name">${adminEsc(r.name || "بدون اسم")}</div><div class="meta"><b>العميل:</b> ${adminEsc(r.customer_name || "غير محدد")}<br><b>الهاتف:</b> ${adminEsc(r.customer_phone || "غير محدد")}<br><b>الإيميل:</b> ${adminEsc(r.customer_email || "غير محدد")}<br><b>نوع النشاط:</b> ${adminType(r.business_type)}<br><b>الرابط:</b> /menu/${slug}<br><b>تاريخ التسجيل:</b> ${adminFmt(r.customer_created_at || r.created_at)}<br><b>بداية الفترة المجانية:</b> ${adminFmt(r.customer_created_at || r.created_at)}<br><b>تاريخ الانتهاء:</b> ${adminFmt(r.menu_expires_at)}</div><span class="status ${cls}">${label}</span><div class="actions"><select class="plan" data-plan="${adminEsc(r.id)}"><option value="30d">30 يوم</option><option value="3m">3 شهور</option><option value="1y">سنة</option><option value="permanent">مفتوح على طول</option></select><button class="renew" data-action="renew" data-id="${adminEsc(r.id)}">▶️ تشغيل / تجديد</button><button class="edit" data-action="edit" data-id="${adminEsc(r.id)}">✏️ تعديل المنيو</button><button class="stop" data-action="disable" data-id="${adminEsc(r.id)}">⏹️ إيقاف</button><button class="open" data-action="open" data-slug="${slug}">👀 فتح المنيو</button></div></article>`;
   }).join("") : `<div class="empty">${restaurants.length === 0 ? "لا توجد منيوهات حتى الآن." : ""}</div>`;
 
   return `
@@ -2504,8 +2547,8 @@ main{max-width:1200px;margin:auto;padding:28px 16px 80px}
 .status{display:inline-block;padding:6px 10px;border-radius:999px;font-weight:bold;font-size:12px;margin:10px 0}
 .active{background:#e3f3e3;color:#2f7132}.expired{background:#fde7e7;color:#a52e2e}.disabled{background:#eee;color:#555}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.actions button{border:0;border-radius:10px;padding:11px 14px;font-family:inherit;font-weight:bold;cursor:pointer}
-.renew{background:#211d19;color:#fff}.stop{background:#f0e3d8;color:#6b4020}.open{background:#eee;color:#222}
+.actions button,.plan{border:0;border-radius:10px;padding:11px 14px;font-family:inherit;font-weight:bold;cursor:pointer}.plan{background:#f7f2eb;color:#211d19;border:1px solid #ddd}
+.renew{background:#211d19;color:#fff}.edit{background:#e8f0ff;color:#214d8b}.stop{background:#f0e3d8;color:#6b4020}.open{background:#eee;color:#222}
 .empty{text-align:center;padding:35px;background:#fff;border-radius:18px;color:#777}
 footer{text-align:center;color:#777;padding:25px 15px 35px;font-size:13px}footer strong{display:block;color:#211d19;font-size:18px;direction:ltr;margin-bottom:5px}
 @media(max-width:650px){header{padding:14px 16px}.brand{font-size:20px}.hero h1{font-size:23px}}
@@ -2528,10 +2571,11 @@ async function call(url,body){const res=await fetch(url,{method:'POST',headers:{
 function show(msg){const el=document.getElementById('message');el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',2500)}
 async function call(url,body){const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)});const d=await res.json().catch(()=>({ok:false,error:'استجابة غير صالحة من الخادم'}));if(!res.ok||!d.ok)throw new Error(d.error||'حدث خطأ');return d}
 function show(msg){const el=document.getElementById('message');el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',2500)}
-async function renew(id){if(!confirm('تشغيل أو تجديد هذه المنيو لمدة 30 يوم؟'))return;try{await call('/api/admin/menu/activate',{restaurant_id:id,days:30});show('تم تشغيل/تجديد المنيو لمدة 30 يوم ✓');setTimeout(()=>location.reload(),500)}catch(e){alert(e.message)}}
+async function renew(id){const sel=document.querySelector('[data-plan="'+CSS.escape(id)+'"]');const plan=sel?sel.value:'30d';const labels={"30d":"30 يوم","3m":"3 شهور","1y":"سنة","permanent":"مفتوح على طول"};if(!confirm('تشغيل أو تجديد هذه المنيو لمدة '+labels[plan]+'؟'))return;try{await call('/api/admin/menu/activate',{restaurant_id:id,plan});show('تم تحديث الاشتراك: '+labels[plan]+' ✓');setTimeout(()=>location.reload(),500)}catch(e){alert(e.message)}}
 async function disableMenu(id){if(!confirm('هل تريد إيقاف هذه المنيو الآن؟'))return;try{await call('/api/admin/menu/disable',{restaurant_id:id});show('تم إيقاف المنيو ✓');setTimeout(()=>location.reload(),500)}catch(e){alert(e.message)}}
 document.querySelectorAll('[data-action="renew"]').forEach(b=>b.addEventListener('click',()=>renew(b.dataset.id)));
 document.querySelectorAll('[data-action="disable"]').forEach(b=>b.addEventListener('click',()=>disableMenu(b.dataset.id)));
+document.querySelectorAll('[data-action="edit"]').forEach(b=>b.addEventListener('click',()=>location.href='/admin/edit/'+encodeURIComponent(b.dataset.id)));
 document.querySelectorAll('[data-action="open"]').forEach(b=>b.addEventListener('click',()=>window.open('/menu/'+encodeURIComponent(b.dataset.slug||''),'_blank')));
 </script>
 </body>
@@ -2542,9 +2586,11 @@ document.querySelectorAll('[data-action="open"]').forEach(b=>b.addEventListener(
 // DASHBOARD
 // =========================
 
-function dashboardPage() {
+function dashboardPage(targetRestaurantId = "", ownerEditor = false) {
+  const themeSource = ownerEditor ? {...THEMES, ...OWNER_THEMES} : THEMES;
+  const backgroundSource = ownerEditor ? {...BACKGROUNDS, ...OWNER_BACKGROUNDS} : BACKGROUNDS;
   const themeCards =
-    Object.entries(THEMES)
+    Object.entries(themeSource)
       .map(([key, theme]) => {
 
         return `
@@ -2731,6 +2777,7 @@ main{
 }
 
 
+.owner-edit-banner{background:#fff8df;border:1px solid #ead39a;color:#6a4a12;border-radius:16px;padding:14px 16px;margin:0 0 18px;font-weight:800;line-height:1.8}.upload-row{display:flex;gap:8px;align-items:center;margin:8px 0 12px;flex-wrap:wrap}.upload-row input[type=file]{flex:1;min-width:220px;padding:8px}.upload-btn{border:0;border-radius:10px;padding:10px 14px;background:#211d19;color:#fff;font-family:inherit;font-weight:800;cursor:pointer}.upload-btn:disabled{opacity:.6}
 .trial-card{
   background:#fff;
   border:1px solid #e8e3dc;
@@ -2742,7 +2789,7 @@ main{
 .trial-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .trial-title{font-size:19px;font-weight:900}.trial-sub{font-size:13px;color:#888;margin-top:5px}
 .trial-badge{padding:8px 12px;border-radius:999px;font-size:12px;font-weight:900;background:#f1eee9;color:#665}
-.trial-badge.active{background:#e3f3e3;color:#2f7132}.trial-badge.expired{background:#fde7e7;color:#a52e2e}.trial-badge.disabled{background:#eee;color:#555}
+.trial-badge.active{background:#e3f3e3;color:#2f7132}.trial-badge.expired{background:#fde7e7;color:#a52e2e}.trial-badge.disabled{background:#eee;color:#555}.expired-contact{display:none;margin-top:14px;padding:12px 14px;border-radius:12px;background:#fff0f0;border:1px solid #f0caca;color:#a52e2e;font-weight:900}.expired-contact a{color:inherit;text-decoration:none;direction:ltr;display:inline-block;margin-right:4px}
 .trial-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:15px}
 .trial-grid>div{background:#faf8f5;border-radius:12px;padding:12px}.trial-grid small{display:block;color:#888;margin-bottom:5px}.trial-grid strong{font-size:14px}
 @media(max-width:650px){.trial-head{align-items:flex-start;flex-direction:column}.trial-grid{grid-template-columns:1fr}}
@@ -3262,6 +3309,7 @@ onclick="logout()">
 </header>
 
 <main>
+${ownerEditor ? `<div class="owner-edit-banner">🛡️ وضع Owner: أنت تعدل منيو العميل مباشرة. التصميمات والخلفيات الخاصة بالـOwner متاحة لك هنا.</div>` : ""}
 
 <section class="welcome">
 
@@ -3287,6 +3335,7 @@ onclick="logout()">
     <div><small>بداية الفترة</small><strong id="trialStart">—</strong></div>
     <div><small>تاريخ الانتهاء</small><strong id="trialEnd">—</strong></div>
   </div>
+  <div id="expiredContact" class="expired-contact">يرجى الاتصال بالإدارة: <a href="tel:01111369788">01111369788</a></div>
 </section>
 
 <div class="grid">
@@ -3337,12 +3386,10 @@ onclick="logout()">
 <input id="restaurantHours" placeholder="مثال: يومياً من 10 صباحاً إلى 12 منتصف الليل">
 
 <label>
-🖼️ رابط شعار المطعم
+🖼️ شعار المطعم
 </label>
-
-<input
-id="restaurantLogo"
-placeholder="https://...">
+<input id="restaurantLogo" placeholder="رابط الصورة أو ارفع شعار من الموبايل">
+<div class="upload-row"><input id="logoFile" type="file" accept="image/*"><button type="button" class="upload-btn" onclick="uploadLogo()">رفع الشعار</button></div>
 
 <div class="logo-preview">
 
@@ -3443,7 +3490,7 @@ ${themeCards}
 </p>
 
 <div class="backgrounds">
-${Object.entries(BACKGROUNDS).map(([key,value]) => `
+${Object.entries(backgroundSource).map(([key,value]) => `
 <div class="bg-option" data-bg="${key}" style="background:${value}" onclick="selectBackground('${key}')" title="${key}"></div>
 `).join("")}
 </div>
@@ -3522,11 +3569,9 @@ id="itemDescription"
 placeholder="وصف الصنف">
 </textarea>
 
-<label>رابط الصورة</label>
-
-<input
-id="itemImage"
-placeholder="https://...">
+<label>🖼️ صورة الصنف</label>
+<input id="itemImage" placeholder="رابط الصورة أو ارفعها من الموبايل">
+<div class="upload-row"><input id="itemImageFile" type="file" accept="image/*"><button type="button" class="upload-btn" onclick="uploadItemImage()">رفع الصورة</button></div>
 
 <button
 class="save"
@@ -3578,17 +3623,26 @@ function renderTrialStatus(r){
   const badge=document.getElementById("trialBadge");
   const start=document.getElementById("trialStart");
   const end=document.getElementById("trialEnd");
+  const contact=document.getElementById("expiredContact");
   if(!badge||!start||!end)return;
-  const fmtDate=v=>{if(!v)return "غير محدد";const d=new Date(String(v).replace(" ","T")+"Z");return Number.isNaN(d.getTime())?v:d.toLocaleDateString("ar-EG",{dateStyle:"medium"})};
+  const fmtDate=v=>{if(!v)return "مفتوح على طول";const d=new Date(String(v).replace(" ","T")+"Z");return Number.isNaN(d.getTime())?v:d.toLocaleDateString("ar-EG",{dateStyle:"medium"})};
   start.textContent=fmtDate(r.created_at);
   end.textContent=fmtDate(r.menu_expires_at);
   const expired=Number(r.menu_enabled)!==1 || (r.menu_expires_at && new Date(String(r.menu_expires_at).replace(" ","T")+"Z").getTime()<=Date.now());
   if(Number(r.menu_enabled)!==1){badge.textContent="متوقفة";badge.className="trial-badge disabled";}
   else if(expired){badge.textContent="انتهت الفترة";badge.className="trial-badge expired";}
-  else {badge.textContent="نشطة";badge.className="trial-badge active";}
+  else {badge.textContent=r.menu_expires_at?"نشطة":"مفتوحة على طول";badge.className="trial-badge active";}
+  if(contact) contact.style.display=expired ? "block" : "none";
 }
 
+const TARGET_RESTAURANT_ID = ${JSON.stringify(targetRestaurantId)};
+
 async function api(url, options = {}){
+  if(TARGET_RESTAURANT_ID){
+    const u=new URL(url,location.origin);
+    u.searchParams.set("restaurant_id",TARGET_RESTAURANT_ID);
+    url=u.pathname+u.search;
+  }
 
   const response =
     await fetch(
@@ -3615,6 +3669,25 @@ async function api(url, options = {}){
   return data;
 }
 
+
+async function uploadFile(file){
+  if(!file) throw new Error("اختر صورة أولاً");
+  if(!file.type.startsWith("image/")) throw new Error("الملف يجب أن يكون صورة");
+  if(file.size > 8*1024*1024) throw new Error("حجم الصورة يجب ألا يتجاوز 8 ميجابايت");
+  const fd=new FormData();fd.append("file",file);
+  const res=await fetch("/api/upload",{method:"POST",body:fd,credentials:"same-origin"});
+  const data=await res.json().catch(()=>({ok:false,error:"استجابة غير صالحة"}));
+  if(!res.ok||!data.ok) throw new Error(data.error||"تعذر رفع الصورة");
+  return data.url;
+}
+async function uploadLogo(){
+  const input=document.getElementById("logoFile"),btn=document.querySelector('.upload-btn[onclick="uploadLogo()"]');
+  try{btn.disabled=true;btn.textContent="جاري الرفع...";const url=await uploadFile(input.files[0]);document.getElementById("restaurantLogo").value=url;updateLogoPreview();await saveRestaurantData();document.getElementById("restaurantMessage").textContent="تم رفع الشعار وحفظه ✓";}catch(e){alert(e.message)}finally{btn.disabled=false;btn.textContent="رفع الشعار"}
+}
+async function uploadItemImage(){
+  const input=document.getElementById("itemImageFile"),btn=document.querySelector('.upload-btn[onclick="uploadItemImage()"]');
+  try{btn.disabled=true;btn.textContent="جاري الرفع...";const url=await uploadFile(input.files[0]);document.getElementById("itemImage").value=url;document.getElementById("itemMessage").textContent="تم رفع الصورة ✓";}catch(e){alert(e.message)}finally{btn.disabled=false;btn.textContent="رفع الصورة"}
+}
 
 async function load(){
 
@@ -4469,8 +4542,9 @@ function publicMenuPage(
   items
 ) {
 
+  const availableThemes = { ...THEMES, ...OWNER_THEMES };
   const theme =
-    THEMES[restaurant.theme]
+    availableThemes[restaurant.theme]
       || THEMES.modern;
 
   const businessType = restaurant.business_type || "restaurant";
@@ -4485,7 +4559,7 @@ function publicMenuPage(
   const customBackground =
     restaurant.background || "";
 
-  const customBackgrounds = BACKGROUNDS;
+  const customBackgrounds = { ...BACKGROUNDS, ...OWNER_BACKGROUNDS };
 
 
   if(customBackgrounds[customBackground]){
