@@ -8,11 +8,5 @@
       "database_name": "lamsa-db",
       "database_id": "10c497dd-e35c-4797-8b3d-acbc6b52012e"
     }
-  ],
-  "r2_buckets": [
-    {
-      "binding": "IMAGES",
-      "bucket_name": "lamsa-images"
-    }
   ]
 }

@@ -110,14 +110,6 @@ export default {
         return adminDisableMenu(request, env);
       }
 
-      if (path === "/api/upload" && request.method === "POST") {
-        return uploadImage(request, env);
-      }
-
-      if (path.startsWith("/uploads/") && request.method === "GET") {
-        return serveUpload(request, env);
-      }
-
       if (path === "/api/restaurant" && request.method === "GET") {
         return getRestaurant(request, env);
       }
@@ -780,10 +772,7 @@ async function updateRestaurant(request, env) {
     }, 400);
   }
 
-  await getRestaurantByUser(
-    env,
-    user.id
-  );
+  const restaurant = await getTargetRestaurant(request, env, user);
 
   await env.DB.prepare(`
     UPDATE restaurants
@@ -797,7 +786,7 @@ async function updateRestaurant(request, env) {
       logo = ?,
       theme = ?,
       background = ?
-    WHERE user_id = ?
+    WHERE id = ?
   `).bind(
     name,
     description,
@@ -808,7 +797,7 @@ async function updateRestaurant(request, env) {
     logo,
     theme,
     background,
-    user.id
+    restaurant.id
   ).run();
 
   return json({
@@ -1362,35 +1351,6 @@ async function adminDisableMenu(request, env) {
   const result = await env.DB.prepare(`UPDATE restaurants SET menu_enabled = 0 WHERE id = ?`).bind(restaurantId).run();
   if (!result.meta || result.meta.changes !== 1) return json({ ok: false, error: "المطعم غير موجود" }, 404);
   return json({ ok: true, message: "تم إيقاف المنيو" });
-}
-
-
-// =========================
-// IMAGE UPLOADS (R2)
-// =========================
-
-async function uploadImage(request, env) {
-  const user = await requireUser(request, env);
-  if (!user) return unauthorized();
-  if (!env.IMAGES || typeof env.IMAGES.put !== "function") return json({ok:false,error:"تخزين الصور غير مفعّل بعد. يجب ربط R2 باسم IMAGES في إعدادات Worker."},503);
-  const contentType=request.headers.get("content-type")||"";
-  if(!contentType.toLowerCase().startsWith("multipart/form-data")) return json({ok:false,error:"يجب رفع الصورة كملف"},400);
-  const form=await request.formData();const file=form.get("file");
-  if(!(file instanceof File)) return json({ok:false,error:"لم يتم اختيار صورة"},400);
-  if(!file.type.startsWith("image/")) return json({ok:false,error:"الملف يجب أن يكون صورة"},400);
-  if(file.size>8*1024*1024) return json({ok:false,error:"حجم الصورة يجب ألا يتجاوز 8 ميجابايت"},400);
-  const extMap={"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/gif":"gif","image/avif":"avif"};
-  const ext=extMap[file.type]||"img";const key=`uploads/${user.id}/${crypto.randomUUID()}.${ext}`;
-  await env.IMAGES.put(key,file.stream(),{httpMetadata:{contentType:file.type}});
-  return json({ok:true,url:`/uploads/${key}`,key});
-}
-async function serveUpload(request, env) {
-  if(!env.IMAGES||typeof env.IMAGES.get!=="function") return new Response("R2 غير مفعّل",{status:503});
-  const url=new URL(request.url);const key=decodeURIComponent(url.pathname.replace("/uploads/",""));
-  if(!key||key.includes("..")) return new Response("Not found",{status:404});
-  const object=await env.IMAGES.get(key);if(!object) return new Response("Not found",{status:404});
-  const headers=new Headers();object.writeHttpMetadata(headers);headers.set("etag",object.httpEtag);headers.set("cache-control","public, max-age=31536000, immutable");
-  return new Response(object.body,{headers});
 }
 
 
@@ -2777,7 +2737,7 @@ main{
 }
 
 
-.owner-edit-banner{background:#fff8df;border:1px solid #ead39a;color:#6a4a12;border-radius:16px;padding:14px 16px;margin:0 0 18px;font-weight:800;line-height:1.8}.upload-row{display:flex;gap:8px;align-items:center;margin:8px 0 12px;flex-wrap:wrap}.upload-row input[type=file]{flex:1;min-width:220px;padding:8px}.upload-btn{border:0;border-radius:10px;padding:10px 14px;background:#211d19;color:#fff;font-family:inherit;font-weight:800;cursor:pointer}.upload-btn:disabled{opacity:.6}
+.owner-edit-banner{background:#fff8df;border:1px solid #ead39a;color:#6a4a12;border-radius:16px;padding:14px 16px;margin:0 0 18px;font-weight:800;line-height:1.8}
 .trial-card{
   background:#fff;
   border:1px solid #e8e3dc;
@@ -3388,8 +3348,7 @@ ${ownerEditor ? `<div class="owner-edit-banner">🛡️ وضع Owner: أنت ت�
 <label>
 🖼️ شعار المطعم
 </label>
-<input id="restaurantLogo" placeholder="رابط الصورة أو ارفع شعار من الموبايل">
-<div class="upload-row"><input id="logoFile" type="file" accept="image/*"><button type="button" class="upload-btn" onclick="uploadLogo()">رفع الشعار</button></div>
+<input id="restaurantLogo" placeholder="رابط صورة الشعار">
 
 <div class="logo-preview">
 
@@ -3570,8 +3529,7 @@ placeholder="وصف الصنف">
 </textarea>
 
 <label>🖼️ صورة الصنف</label>
-<input id="itemImage" placeholder="رابط الصورة أو ارفعها من الموبايل">
-<div class="upload-row"><input id="itemImageFile" type="file" accept="image/*"><button type="button" class="upload-btn" onclick="uploadItemImage()">رفع الصورة</button></div>
+<input id="itemImage" placeholder="رابط صورة الصنف">
 
 <button
 class="save"
@@ -3628,11 +3586,11 @@ function renderTrialStatus(r){
   const fmtDate=v=>{if(!v)return "مفتوح على طول";const d=new Date(String(v).replace(" ","T")+"Z");return Number.isNaN(d.getTime())?v:d.toLocaleDateString("ar-EG",{dateStyle:"medium"})};
   start.textContent=fmtDate(r.created_at);
   end.textContent=fmtDate(r.menu_expires_at);
-  const expired=Number(r.menu_enabled)!==1 || (r.menu_expires_at && new Date(String(r.menu_expires_at).replace(" ","T")+"Z").getTime()<=Date.now());
+  const expiredByDate=!!(r.menu_expires_at && new Date(String(r.menu_expires_at).replace(" ","T")+"Z").getTime()<=Date.now());
   if(Number(r.menu_enabled)!==1){badge.textContent="متوقفة";badge.className="trial-badge disabled";}
-  else if(expired){badge.textContent="انتهت الفترة";badge.className="trial-badge expired";}
+  else if(expiredByDate){badge.textContent="انتهت الفترة";badge.className="trial-badge expired";}
   else {badge.textContent=r.menu_expires_at?"نشطة":"مفتوحة على طول";badge.className="trial-badge active";}
-  if(contact) contact.style.display=expired ? "block" : "none";
+  if(contact) contact.style.display=(Number(r.menu_enabled)!==1 || expiredByDate) ? "block" : "none";
 }
 
 const TARGET_RESTAURANT_ID = ${JSON.stringify(targetRestaurantId)};
@@ -3670,24 +3628,6 @@ async function api(url, options = {}){
 }
 
 
-async function uploadFile(file){
-  if(!file) throw new Error("اختر صورة أولاً");
-  if(!file.type.startsWith("image/")) throw new Error("الملف يجب أن يكون صورة");
-  if(file.size > 8*1024*1024) throw new Error("حجم الصورة يجب ألا يتجاوز 8 ميجابايت");
-  const fd=new FormData();fd.append("file",file);
-  const res=await fetch("/api/upload",{method:"POST",body:fd,credentials:"same-origin"});
-  const data=await res.json().catch(()=>({ok:false,error:"استجابة غير صالحة"}));
-  if(!res.ok||!data.ok) throw new Error(data.error||"تعذر رفع الصورة");
-  return data.url;
-}
-async function uploadLogo(){
-  const input=document.getElementById("logoFile"),btn=document.querySelector('.upload-btn[onclick="uploadLogo()"]');
-  try{btn.disabled=true;btn.textContent="جاري الرفع...";const url=await uploadFile(input.files[0]);document.getElementById("restaurantLogo").value=url;updateLogoPreview();await saveRestaurantData();document.getElementById("restaurantMessage").textContent="تم رفع الشعار وحفظه ✓";}catch(e){alert(e.message)}finally{btn.disabled=false;btn.textContent="رفع الشعار"}
-}
-async function uploadItemImage(){
-  const input=document.getElementById("itemImageFile"),btn=document.querySelector('.upload-btn[onclick="uploadItemImage()"]');
-  try{btn.disabled=true;btn.textContent="جاري الرفع...";const url=await uploadFile(input.files[0]);document.getElementById("itemImage").value=url;document.getElementById("itemMessage").textContent="تم رفع الصورة ✓";}catch(e){alert(e.message)}finally{btn.disabled=false;btn.textContent="رفع الصورة"}
-}
 
 async function load(){
 
