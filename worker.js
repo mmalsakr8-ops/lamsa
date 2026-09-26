@@ -704,6 +704,7 @@ function emailVerificationPage(success, message) {
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تأكيد البريد | LAMSA</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#17120d,#302217 55%,#111);font-family:Arial,sans-serif;padding:20px}.box{max-width:520px;width:100%;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.15);border-radius:24px;padding:35px;text-align:center;color:#fff}.icon{font-size:52px;margin-bottom:15px}.title{font-size:28px;font-weight:900;margin-bottom:15px}.message{line-height:1.9;color:#eee}.btn{display:inline-block;margin-top:25px;padding:13px 25px;border-radius:12px;background:#d7ad63;color:#21170e;text-decoration:none;font-weight:900}</style></head><body><div class="box"><div class="icon">${success ? "✓" : "!"}</div><div class="title">${success ? "تم التأكيد" : "تعذر التأكيد"}</div><div class="message">${escapeHtml(message)}</div><a class="btn" href="/login">الذهاب لتسجيل الدخول</a></div></body></html>`;
 }
 
+
 async function adminLogin(request, env) {
   const body = await request.json().catch(() => ({}));
   const identifier = clean(body.identifier).toLowerCase();
