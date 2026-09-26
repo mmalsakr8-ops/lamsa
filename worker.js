@@ -4,6 +4,8 @@ const OWNER_EMAIL = "admin@lamsa.local";
 const OWNER_NAME = "LAMSA Owner";
 const OWNER_PHONE = "__LAMSA_OWNER__";
 const OWNER_PASSWORD_HASH = "pbkdf2$100000$6lSer6pmljTCjbnbWeqSMQ==$GcwPonJEDF8QepmW+2egBPbgzwCvqF17IPqy7sPazFQ=";
+const RESEND_FROM = "LAMSA <noreply@airexoikro.resend.app>";
+const VERIFICATION_MINUTES = 30;
 
 const THEMES = {
   luxury: { name: "فاخر أسود وذهبي", background: "linear-gradient(135deg,#17120d,#302217 45%,#111)", accent: "#d7ad63", card: "#211b15", text: "#fffaf0" },
@@ -84,6 +86,14 @@ export default {
 
       if (path === "/api/login" && request.method === "POST") {
         return login(request, env);
+      }
+
+      if (path === "/api/resend-verification" && request.method === "POST") {
+        return resendVerification(request, env);
+      }
+
+      if (path === "/verify-email" && request.method === "GET") {
+        return verifyEmail(request, env);
       }
 
       if (path === "/api/admin/login" && request.method === "POST") {
@@ -276,6 +286,29 @@ async function initDB(env) {
     `)
   ]);
 
+  await ensureUserColumn(env, "email_verified", "INTEGER NOT NULL DEFAULT 0");
+
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS email_verifications (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      token TEXT NOT NULL UNIQUE,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `).run();
+
+  await env.DB.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_email_verifications_token
+    ON email_verifications(token)
+  `).run();
+
+  await env.DB.prepare(`
+    UPDATE users SET email_verified = 1
+    WHERE email = ? OR role = "owner"
+  `).bind(OWNER_EMAIL).run();
+
   await ensureRestaurantColumn(
     env,
     "theme",
@@ -310,6 +343,15 @@ async function initDB(env) {
     UPDATE users SET role = "customer"
     WHERE role = "admin" AND email <> ?
   `).bind(OWNER_EMAIL).run();
+}
+
+
+async function ensureUserColumn(env, column, definition) {
+  const result = await env.DB.prepare("PRAGMA table_info(users)").all();
+  const exists = (result.results || []).some(row => row.name === column);
+  if (!exists) {
+    await env.DB.prepare(`ALTER TABLE users ADD COLUMN ${column} ${definition}`).run();
+  }
 }
 
 
@@ -399,8 +441,8 @@ async function register(request, env) {
 
   await env.DB.prepare(`
     INSERT INTO users
-    (id, name, email, phone, password_hash, role)
-    VALUES (?, ?, ?, ?, ?, ?)
+    (id, name, email, phone, password_hash, role, email_verified)
+    VALUES (?, ?, ?, ?, ?, ?, 0)
   `).bind(
     id,
     name,
@@ -427,29 +469,32 @@ async function register(request, env) {
     "restaurant"
   ).run();
 
-  const session =
-    await createSession(env, id);
+  try {
+    await sendVerificationEmail(env, { id, name, email }, new URL(request.url).origin);
+  } catch (error) {
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM email_verifications WHERE user_id = ?").bind(id),
+      env.DB.prepare("DELETE FROM restaurants WHERE user_id = ?").bind(id),
+      env.DB.prepare("DELETE FROM users WHERE id = ?").bind(id)
+    ]);
+    return json({
+      ok: false,
+      error: "تعذر إرسال رسالة تأكيد البريد الإلكتروني. حاول مرة أخرى."
+    }, 500);
+  }
 
   return new Response(
     JSON.stringify({
       ok: true,
-      message: "تم إنشاء الحساب بنجاح",
-      user: {
-        id,
-        name,
-        email,
-        phone,
-        role
-      }
+      requires_verification: true,
+      message: "تم إنشاء الحساب. أرسلنا رسالة تأكيد إلى بريدك الإلكتروني.",
+      user: { id, name, email, phone, role }
     }),
     {
       status: 201,
       headers: {
         ...corsHeaders(),
-        "content-type":
-          "application/json; charset=UTF-8",
-        "set-cookie":
-          sessionCookie(session)
+        "content-type": "application/json; charset=UTF-8"
       }
     }
   );
@@ -511,6 +556,13 @@ async function login(request, env) {
     }, 403);
   }
 
+  if (Number(user.email_verified || 0) !== 1) {
+    return json({
+      ok: false,
+      error: "يجب تأكيد البريد الإلكتروني أولاً. راجع بريدك الإلكتروني."
+    }, 403);
+  }
+
   const session =
     await createSession(
       env,
@@ -534,6 +586,123 @@ async function login(request, env) {
   );
 }
 
+
+async function sendVerificationEmail(env, user, origin) {
+  const token = crypto.randomUUID() + crypto.randomUUID().replaceAll("-", "");
+  const expiresAt = new Date(Date.now() + VERIFICATION_MINUTES * 60 * 1000).toISOString();
+
+  await env.DB.prepare("DELETE FROM email_verifications WHERE user_id = ?").bind(user.id).run();
+  await env.DB.prepare(`
+    INSERT INTO email_verifications (id, user_id, token, expires_at)
+    VALUES (?, ?, ?, ?)
+  `).bind(crypto.randomUUID(), user.id, token, expiresAt).run();
+
+  const verifyUrl = `${origin}/verify-email?token=${encodeURIComponent(token)}`;
+
+  if (!env.RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY is not configured");
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${env.RESEND_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      from: RESEND_FROM,
+      to: [user.email],
+      subject: "تأكيد البريد الإلكتروني — LAMSA",
+      html: `
+        <div dir="rtl" style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:30px;background:#f8f5ef;color:#21170e">
+          <h2 style="text-align:center">مرحبًا ${escapeHtml(user.name)}</h2>
+          <p>شكرًا لاستخدامك LAMSA. لتفعيل حسابك، اضغط على الزر التالي:</p>
+          <p style="text-align:center;margin:30px 0">
+            <a href="${verifyUrl}" style="display:inline-block;padding:14px 24px;background:#d7ad63;color:#21170e;text-decoration:none;border-radius:10px;font-weight:bold">تأكيد البريد الإلكتروني</a>
+          </p>
+          <p>صلاحية الرابط: ${VERIFICATION_MINUTES} دقيقة.</p>
+          <p style="font-size:13px;color:#666">إذا لم تكن أنت من أنشأ الحساب، يمكنك تجاهل هذه الرسالة.</p>
+        </div>
+      `
+    })
+  });
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`Resend error: ${detail}`);
+  }
+}
+
+
+async function resendVerification(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const email = clean(body.email).toLowerCase();
+
+  if (!isEmail(email)) {
+    return json({ ok: false, error: "أدخل بريدًا إلكترونيًا صحيحًا" }, 400);
+  }
+
+  const user = await env.DB.prepare(`
+    SELECT id, name, email, role, email_verified
+    FROM users
+    WHERE LOWER(email) = ?
+    LIMIT 1
+  `).bind(email).first();
+
+  if (!user) {
+    return json({ ok: true, message: "إذا كان البريد مسجلًا لدينا، ستصلك رسالة تأكيد جديدة." });
+  }
+
+  if (user.role === "owner" || Number(user.email_verified || 0) === 1) {
+    return json({ ok: true, message: "هذا البريد الإلكتروني مؤكد بالفعل." });
+  }
+
+  try {
+    await sendVerificationEmail(env, user, new URL(request.url).origin);
+  } catch (error) {
+    return json({ ok: false, error: "تعذر إرسال رسالة التأكيد. حاول مرة أخرى." }, 500);
+  }
+
+  return json({ ok: true, message: "تم إرسال رسالة تأكيد جديدة إلى بريدك الإلكتروني." });
+}
+
+
+async function verifyEmail(request, env) {
+  const token = new URL(request.url).searchParams.get("token");
+
+  if (!token) {
+    return html(emailVerificationPage(false, "رابط التأكيد غير صحيح."), 400);
+  }
+
+  const record = await env.DB.prepare(`
+    SELECT ev.id, ev.user_id, ev.expires_at, u.email_verified
+    FROM email_verifications ev
+    JOIN users u ON u.id = ev.user_id
+    WHERE ev.token = ?
+    LIMIT 1
+  `).bind(token).first();
+
+  if (!record) {
+    return html(emailVerificationPage(false, "رابط التأكيد غير صالح أو تم استخدامه بالفعل."), 400);
+  }
+
+  if (new Date(record.expires_at).getTime() < Date.now()) {
+    await env.DB.prepare("DELETE FROM email_verifications WHERE id = ?").bind(record.id).run();
+    return html(emailVerificationPage(false, "انتهت صلاحية رابط التأكيد. يمكنك طلب رسالة جديدة من صفحة الدخول."), 400);
+  }
+
+  await env.DB.batch([
+    env.DB.prepare("UPDATE users SET email_verified = 1 WHERE id = ?").bind(record.user_id),
+    env.DB.prepare("DELETE FROM email_verifications WHERE id = ?").bind(record.id)
+  ]);
+
+  return html(emailVerificationPage(true, "تم تأكيد بريدك الإلكتروني بنجاح. يمكنك الآن تسجيل الدخول."));
+}
+
+
+function emailVerificationPage(success, message) {
+  return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تأكيد البريد | LAMSA</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#17120d,#302217 55%,#111);font-family:Arial,sans-serif;padding:20px}.box{max-width:520px;width:100%;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.15);border-radius:24px;padding:35px;text-align:center;color:#fff}.icon{font-size:52px;margin-bottom:15px}.title{font-size:28px;font-weight:900;margin-bottom:15px}.message{line-height:1.9;color:#eee}.btn{display:inline-block;margin-top:25px;padding:13px 25px;border-radius:12px;background:#d7ad63;color:#21170e;text-decoration:none;font-weight:900}</style></head><body><div class="box"><div class="icon">${success ? "✓" : "!"}</div><div class="title">${success ? "تم التأكيد" : "تعذر التأكيد"}</div><div class="message">${escapeHtml(message)}</div><a class="btn" href="/login">الذهاب لتسجيل الدخول</a></div></body></html>`;
+}\n
 
 async function adminLogin(request, env) {
   const body = await request.json().catch(() => ({}));
@@ -2263,6 +2432,10 @@ id="message"
 class="message">
 </div>
 
+<div id="verificationActions" style="display:none;margin-top:12px;text-align:center">
+<button type="button" onclick="resendVerificationEmail()" style="border:0;background:transparent;color:#d7ad63;text-decoration:underline;cursor:pointer;font-family:inherit">إعادة إرسال رسالة التأكيد</button>
+</div>
+
 <a href="/" class="back">
 ← العودة للرئيسية
 </a>
@@ -2285,6 +2458,10 @@ document.getElementById("registerTab");
 
 const message =
 document.getElementById("message");
+
+const verificationActions =
+document.getElementById("verificationActions");
+let verificationEmail = "";
 
 function showMessage(text){
   message.textContent = text;
@@ -2311,6 +2488,7 @@ function showRegister(){
   registerTab.classList.add("active");
 
   message.style.display = "none";
+  verificationActions.style.display = "none";
 }
 
 loginForm.addEventListener("submit",async function(e){
@@ -2347,6 +2525,15 @@ loginForm.addEventListener("submit",async function(e){
       throw new Error(
         data.error || "تعذر تسجيل الدخول"
       );
+    }
+
+    if (data.requires_verification) {
+      verificationEmail = document.getElementById("registerEmail").value.trim();
+      showMessage(data.message || "تم إنشاء الحساب. راجع بريدك الإلكتروني لتأكيد الحساب.");
+      verificationActions.style.display = "block";
+      button.disabled=false;
+      button.textContent="إنشاء الحساب";
+      return;
     }
 
     location.href="/dashboard";
@@ -2417,6 +2604,29 @@ registerForm.addEventListener("submit",async function(e){
   }
 
 });
+
+
+async function resendVerificationEmail(){
+  if(!verificationEmail){
+    showMessage("أدخل بريدك الإلكتروني أولاً.");
+    return;
+  }
+
+  try{
+    const response = await fetch("/api/resend-verification",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({email:verificationEmail})
+    });
+    const data = await response.json();
+    if(!response.ok || !data.ok){
+      throw new Error(data.error || "تعذر إرسال رسالة التأكيد");
+    }
+    showMessage(data.message);
+  }catch(error){
+    showMessage(error.message);
+  }
+}
 
 </script>
 
